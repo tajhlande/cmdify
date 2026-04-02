@@ -5,9 +5,20 @@ use std::thread;
 use std::time::Duration;
 
 const FRAMES: &[char] = &['|', '\\', '/', '-'];
-const FRAMES_2: &[char] = &['⣾', '⣷', '⣯', '⣟', '⣻', '⣽', '⣾', '⣷'];
-const FRAMES_3: &[char] = &['⋅', '.', '˳', '˳', '.', '⋅', 'ॱ', '˙', '˙', 'ॱ'];
+
+const FRAMES_BRAILLE: &[char] = &['⣾', '⣷', '⣯', '⣟', '⣻', '⣽', '⣾', '⣷'];
+
+const FRAMES_DOTS: &[char] = &['⋅', '.', '˳', '˳', '.', '⋅', 'ॱ', '˙', '˙', 'ॱ'];
+
 const FRAME_INTERVAL: Duration = Duration::from_millis(120);
+
+fn frames_for(selection: u8) -> &'static [char] {
+    match selection {
+        2 => FRAMES_BRAILLE,
+        3 => FRAMES_DOTS,
+        _ => FRAMES,
+    }
+}
 
 pub struct Throbber {
     running: Option<Arc<AtomicBool>>,
@@ -15,7 +26,7 @@ pub struct Throbber {
 }
 
 impl Throbber {
-    pub fn start() -> Self {
+    pub fn start(selection: u8) -> Self {
         if !io::stderr().is_terminal() {
             return Self {
                 running: None,
@@ -23,6 +34,7 @@ impl Throbber {
             };
         }
 
+        let frames = frames_for(selection);
         let running = Arc::new(AtomicBool::new(true));
         let running_clone = running.clone();
         let mut stderr = io::stderr();
@@ -30,7 +42,7 @@ impl Throbber {
         let handle = thread::spawn(move || {
             let mut frame_idx = 0;
             while running_clone.load(Ordering::Relaxed) {
-                let frame = FRAMES_3[frame_idx % FRAMES_3.len()];
+                let frame = frames[frame_idx % frames.len()];
                 let _ = write!(stderr, "\r{} ", frame);
                 let _ = stderr.flush();
                 frame_idx += 1;

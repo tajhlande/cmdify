@@ -6,7 +6,7 @@ Turn natural language into shell commands with AI.
 
 ## Features
 
-- **Multiple providers** — OpenAI, Anthropic, Google Gemini, Mistral, Qwen, Kimi, OpenRouter, HuggingFace, Z.ai, Minimax, and any OpenAI-compatible `/completions` or `/responses` endpoint.
+- **Multiple providers** — OpenAI, Anthropic, Google Gemini, Mistral, Qwen, Kimi, OpenRouter, HuggingFace, Z.ai, Minimax, Ollama, and any OpenAI-compatible `/completions` or `/responses` endpoint.
 - **Interactive tools** — The model can ask clarifying questions (multiple-choice) and look up commands on your system (`which`/`command -v`).
 - **Zero runtime deps** — Static binary via Rust + rustls. No OpenSSL, no shared libraries.
 - **Pipe-friendly** — All interactive prompts go to stderr; only the final command goes to stdout, so `$(cmdify "find all pdf files")` works.
@@ -93,6 +93,7 @@ The config file is optional. If present, its values are used as defaults that en
 | Minimax             | `MINIMAX_API_KEY`        | `MINIMAX_BASE_URL`        |
 | Generic completions | `CMDIFY_COMPLETIONS_KEY` | `CMDIFY_COMPLETIONS_URL`  |
 | Generic responses   | `CMDIFY_RESPONSES_KEY`   | `CMDIFY_RESPONSES_URL`    |
+| Ollama              | *(none)*                 | `OLLAMA_BASE_URL`         |
 
 Base URL variables are optional — each provider has a sensible default.
 
@@ -100,16 +101,20 @@ Base URL variables are optional — each provider has a sensible default.
 
 | Variable               | Default       | Description                                          |
 |------------------------|---------------|------------------------------------------------------|
-| `CMDIFY_MAX_TOKENS`    | 4096          | Max tokens for providers that require it             |
+| `CMDIFY_MAX_TOKENS`    | 16384        | Max tokens for providers that require it             |
 | `CMDIFY_SYSTEM_PROMPT` | (compiled-in) | Override the default system prompt with the contents |
+| `CMDIFY_SPINNER`       | 1             | Spinner style: 1, 2 (braille), or 3 (dots) |
 
 ## CLI Flags
 
-| Flag               | Effect                                    |
-|--------------------|-------------------------------------------|
-| `-q`, `--quiet`    | Disable the `ask_user` clarification tool |
-| `-b`, `--blind`    | Disable the `find_command` discovery tool |
-| `-n`, `--no-tools` | Disable all tools                         |
+| Flag                  | Effect                                    |
+|-----------------------|-------------------------------------------|
+| `-q`, `--quiet`       | Disable the `ask_user` clarification tool |
+| `-b`, `--blind`       | Disable the `find_command` discovery tool |
+| `-n`, `--no-tools`    | Disable all tools                         |
+| `-y`, `--yolo`        | Execute the generated command after printing it |
+| `-s N`, `--spinner N` | Spinner style: 1 (default), 2 (braille), 3 (dots) |
+| `-u`, `--unsafe`      | Allow potentially unsafe commands (bypasses safety check) |
 
 ## Development
 

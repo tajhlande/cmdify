@@ -69,11 +69,13 @@ src/
 │   ├── kimi.rs          # Kimi provider
 │   ├── mistral.rs       # Mistral provider
 │   ├── openrouter.rs    # OpenRouter provider
-│   └── huggingface.rs   # HuggingFace provider
+│   ├── huggingface.rs   # HuggingFace provider
+│   └── ollama.rs        # Ollama provider (local, no auth)
 ├── tools/
 │   ├── mod.rs           # Tool trait, registry
 │   ├── ask_user.rs      # interactive multiple-choice question
 │   └── find_command.rs  # command discovery (command -v / which)
+├── safety.rs             # unsafe command pattern detection
 ├── prompt.rs            # prompt assembly, exposes SYSTEM_PROMPT
 └── system_prompt.txt    # system prompt text (embedded at compile time)
 ```
@@ -101,6 +103,9 @@ Uses `clap` with derive macros. Parses:
 | `--quiet` | `-q` | Disables the `ask_user` tool |
 | `--blind` | `-b` | Disables the `find_command` tool |
 | `--no-tools` | `-n` | Disables all tools |
+| `--yolo` | `-y` | Execute the generated command after printing it |
+| `--spinner N` | `-s N` | Spinner style: 1 (default), 2 (braille), 3 (dots) |
+| `--unsafe` | `-u` | Allow potentially unsafe commands (bypasses safety check) |
 
 **Flag precedence:** `-n` (`--no-tools`) takes absolute precedence over `-q` and `-b`. If `-n` is set, no tools are registered regardless of whether `-q` or `-b` are also present. The `clap` configuration should mark `-n` as conflicting with `-q` and `-b` to prevent confusing combinations.
 
@@ -156,6 +161,19 @@ The prompt instructs the model to:
 - Use the `find_command` tool to verify that suggested commands exist before outputting them.
 - Respond with ONLY the command text (no markdown fences, no explanation) in the final answer.
 - Use tool calls to gather information; only produce a final answer when confident.
+
+### 4.7 Safety Check (`safety.rs`)
+
+Inspects generated commands for potentially dangerous patterns before outputting or executing them. See [Phase 9 — Safety Check](../implementation/phase-9-safety-check.md) for full design.
+
+**Behavior:**
+- By default, if the generated command matches an unsafe pattern, cmdify prints an error to stderr and exits with code 1. The error includes the matched pattern and instructions to rerun with `--unsafe` (`-u`).
+- When `-u` / `--unsafe` is passed, the safety check is skipped entirely.
+- The safety check runs in `main.rs` after the orchestrator returns and before printing/executing the command.
+
+**Configuration:** Supports the `CMDIFY_UNSAFE` env var and `unsafe` config file field. Precedence: CLI flag > env var > config file > default (false).
+
+**Pattern categories:** Recursive delete (`rm -rf /`), disk destruction (`dd`, `mkfs`), system shutdown/reboot, privilege escalation writes, force kill all processes, package removal. The pattern list is conservative (prefers false positives over false negatives) and stored as a static array in the safety module.
 
 ---
 

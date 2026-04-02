@@ -2,7 +2,7 @@
 
 ## Goal
 
-Complete the full provider lineup by adding the OpenAI Responses API provider and the remaining named providers (Z.ai, Minimax, Qwen, Kimi, Mistral).
+Complete the full provider lineup by adding the OpenAI Responses API provider, the remaining named providers (Z.ai, Minimax, Qwen, Kimi, Mistral), and Ollama.
 
 ## Scope
 
@@ -12,6 +12,7 @@ Complete the full provider lineup by adding the OpenAI Responses API provider an
 - **Qwen** (`qwen`): thin wrapper around completions
 - **Kimi** (`kimi`): thin wrapper around completions
 - **Mistral** (`mistral`): thin wrapper around completions
+- **Ollama** (`ollama`): thin wrapper around completions, default `http://localhost:11434`, no auth required
 
 ## Files to Create / Modify
 
@@ -25,7 +26,8 @@ src/
     ├── minimax.rs         # CREATE: thin completions wrapper
     ├── qwen.rs            # CREATE: thin completions wrapper
     ├── kimi.rs            # CREATE: thin completions wrapper
-    └── mistral.rs         # CREATE: thin completions wrapper
+    ├── mistral.rs         # CREATE: thin completions wrapper
+    └── ollama.rs          # CREATE: thin completions wrapper, no auth
 tests/
 └── provider_test.rs       # MODIFY: add tests
 ```
@@ -66,8 +68,9 @@ Each is a thin struct following the Phase 4 pattern:
 | `qwen` | `qwen.rs` | `https://dashscope.aliyuncs.com/compatible-mode` | `QWEN_API_KEY` |
 | `kimi` | `kimi.rs` | `https://api.moonshot.cn` | `KIMI_API_KEY` |
 | `mistral` | `mistral.rs` | `https://api.mistral.ai` | `MISTRAL_API_KEY` |
+| `ollama` | `ollama.rs` | `http://localhost:11434` | *(none — no auth)* |
 
-All delegate to `send_completions_request()` with their respective defaults. All require their API key. All allow base URL override via `_<PROVIDER>_BASE_URL`.
+All delegate to `send_completions_request()` with their respective defaults. All require their API key (except Ollama, which requires no auth). All allow base URL override via `_<PROVIDER>_BASE_URL`.
 
 ### 6.3 Config and factory updates
 
@@ -94,6 +97,7 @@ pub fn create_provider(config: &Config) -> Result<Box<dyn Provider>> {
         "qwen" => Ok(Box::new(QwenProvider::new(config)?)),
         "kimi" => Ok(Box::new(KimiProvider::new(config)?)),
         "mistral" => Ok(Box::new(MistralProvider::new(config)?)),
+        "ollama" => Ok(Box::new(OllamaProvider::new(config)?)),
         other => Err(Error::ConfigError(format!("unknown provider: {}", other))),
     }
 }
@@ -112,7 +116,7 @@ pub fn create_provider(config: &Config) -> Result<Box<dyn Provider>> {
 ## Acceptance Criteria
 
 - [ ] `CMDIFY_PROVIDER_NAME=responses CMDIFY_MODEL_NAME=... CMDIFY_RESPONSES_URL=... cmdify find files` works
-- [ ] All 12 providers are functional (with appropriate API keys and models)
+- [ ] All 13 providers are functional (with appropriate API keys and models)
 - [ ] Unknown provider name produces a clear error message
 - [ ] All providers support tools where applicable
 - [ ] `make check` passes

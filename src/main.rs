@@ -28,14 +28,39 @@ async fn main() {
         }
     };
 
-    let throbber = throbber::Throbber::start();
+    let spinner = cli
+        .spinner
+        .or_else(|| {
+            std::env::var("CMDIFY_SPINNER")
+                .ok()
+                .and_then(|v| v.parse().ok())
+        })
+        .unwrap_or(1);
+
+    let throbber = throbber::Throbber::start(spinner);
 
     let result = orchestrator::run(&user_prompt, &config).await;
 
     throbber.stop();
 
     match result {
-        Ok(content) => println!("{}", content),
+        Ok(content) => {
+            println!("{}", content);
+            if cli.yolo {
+                let shell = std::env::var("SHELL").unwrap_or_else(|_| "sh".into());
+                let status = std::process::Command::new(shell)
+                    .arg("-c")
+                    .arg(&content)
+                    .status();
+                match status {
+                    Ok(s) => std::process::exit(s.code().unwrap_or(1)),
+                    Err(e) => {
+                        eprintln!("error executing command: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
         Err(e) => {
             eprintln!("{}", e);
             std::process::exit(1);

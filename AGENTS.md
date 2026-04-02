@@ -49,6 +49,9 @@
   - `-q` or `--quiet` to turn off the question-answering tool
   - `-b` or `--blind` to turn off the command-finding tool
   - `-n` or `--no-tools` to turn off all tools
+  - `-y` or `--yolo` to execute the generated command after printing it
+  - `-s N` or `--spinner N` to select spinner style (1, 2, or 3)
+  - `-u` or `--unsafe` to allow potentially unsafe commands (bypasses safety check)
 
 ## Build process
 

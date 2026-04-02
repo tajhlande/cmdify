@@ -73,6 +73,7 @@ pub fn create_provider(config: &Config) -> Result<Box<dyn Provider>> {
         "mistral" => Ok(Box::new(MistralProvider::new(config)?)),
         "openrouter" => Ok(Box::new(OpenRouterProvider::new(config)?)),
         "huggingface" => Ok(Box::new(HuggingFaceProvider::new(config)?)),
+        "ollama" => Ok(Box::new(OllamaProvider::new(config)?)),
         other => Err(Error::ConfigError(format!("unknown provider: {}", other))),
     }
 }
@@ -88,7 +89,7 @@ Providers fall into three wire-format categories:
 
 | Category | Wire Format | Providers |
 |----------|-------------|-----------|
-| **OpenAI Completions** | `POST /v1/chat/completions` | `openai`, `completions`, `zai`, `minimax`, `qwen`, `kimi`, `mistral`, `openrouter`, `huggingface` |
+| **OpenAI Completions** | `POST /v1/chat/completions` | `openai`, `completions`, `zai`, `minimax`, `qwen`, `kimi`, `mistral`, `openrouter`, `huggingface`, `ollama` |
 | **Anthropic Messages** | `POST /v1/messages` | `anthropic` |
 | **OpenAI Responses** | `POST /v1/responses` | `responses` |
 | **Gemini** | `POST /v1beta/models/{model}:generateContent` | `gemini` |
@@ -109,6 +110,7 @@ Named providers are thin wrappers that set the correct default base URL and auth
 | `qwen` | `https://dashscope.aliyuncs.com/compatible-mode` | OpenAI Completions | `Authorization: Bearer <QWEN_API_KEY>` |
 | `kimi` | `https://api.moonshot.cn` | OpenAI Completions | `Authorization: Bearer <KIMI_API_KEY>` |
 | `mistral` | `https://api.mistral.ai` | OpenAI Completions | `Authorization: Bearer <MISTRAL_API_KEY>` |
+| `ollama` | `http://localhost:11434` | OpenAI Completions | *(none)* |
 
 Each named provider allows overriding the base URL via `_<PROVIDER>_BASE_URL`.
 

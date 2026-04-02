@@ -65,6 +65,7 @@ Each provider only reads its own variables. Unrelated variables are ignored.
 | `OPENROUTER_BASE_URL` | openrouter | Custom base URL (default: `https://openrouter.ai/api`) |
 | `HUGGINGFACE_API_KEY` | huggingface | API key |
 | `HUGGINGFACE_BASE_URL` | huggingface | Custom base URL (default: `https://api-inference.huggingface.co`) |
+| `OLLAMA_BASE_URL` | ollama | Custom base URL (default: `http://localhost:11434`) — no API key required |
 
 ### 1.3 Config Struct
 

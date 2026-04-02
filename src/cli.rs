@@ -17,6 +17,21 @@ pub struct Cli {
     pub no_tools: bool,
 
     #[arg(
+        short = 'y',
+        long = "yolo",
+        help = "Execute the generated command after printing it"
+    )]
+    pub yolo: bool,
+
+    #[arg(
+        short = 's',
+        long = "spinner",
+        value_name = "N",
+        help = "Spinner style: 1 (default), 2 (braille), or 3 (dots)"
+    )]
+    pub spinner: Option<u8>,
+
+    #[arg(
         trailing_var_arg = true,
         help = "Natural language description of the command to generate"
     )]
@@ -62,6 +77,37 @@ mod tests {
     }
 
     #[test]
+    fn parse_yolo_flag() {
+        let cli = Cli::try_parse_from(["cmdify", "-y", "find files"]).unwrap();
+        assert!(cli.yolo);
+        assert!(!cli.no_tools);
+    }
+
+    #[test]
+    fn parse_yolo_long_flag() {
+        let cli = Cli::try_parse_from(["cmdify", "--yolo", "find files"]).unwrap();
+        assert!(cli.yolo);
+    }
+
+    #[test]
+    fn parse_spinner_short() {
+        let cli = Cli::try_parse_from(["cmdify", "-s", "2", "find files"]).unwrap();
+        assert_eq!(cli.spinner, Some(2));
+    }
+
+    #[test]
+    fn parse_spinner_long() {
+        let cli = Cli::try_parse_from(["cmdify", "--spinner", "3", "find files"]).unwrap();
+        assert_eq!(cli.spinner, Some(3));
+    }
+
+    #[test]
+    fn spinner_default() {
+        let cli = Cli::try_parse_from(["cmdify", "find files"]).unwrap();
+        assert_eq!(cli.spinner, None);
+    }
+
+    #[test]
     fn parse_long_flags() {
         let cli = Cli::try_parse_from(["cmdify", "--quiet", "--blind", "test"]).unwrap();
         assert!(cli.quiet);
@@ -83,5 +129,7 @@ mod tests {
         assert!(help.contains("quiet"));
         assert!(help.contains("blind"));
         assert!(help.contains("no-tools"));
+        assert!(help.contains("yolo"));
+        assert!(help.contains("spinner"));
     }
 }

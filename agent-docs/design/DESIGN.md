@@ -76,6 +76,7 @@ src/
 │   ├── ask_user.rs      # interactive multiple-choice question
 │   └── find_command.rs  # command discovery (command -v / which)
 ├── safety.rs             # unsafe command pattern detection
+├── setup.rs              # interactive config wizard
 ├── prompt.rs            # prompt assembly, exposes SYSTEM_PROMPT
 └── system_prompt.txt    # system prompt text (embedded at compile time)
 ```
@@ -106,6 +107,7 @@ Uses `clap` with derive macros. Parses:
 | `--yolo` | `-y` | Execute the generated command after printing it |
 | `--spinner N` | `-s N` | Spinner style: 1 (default), 2 (braille), 3 (dots) |
 | `--unsafe` | `-u` | Allow potentially unsafe commands (bypasses safety check) |
+| `--setup` | — | Run interactive setup wizard (requires interactive terminal) |
 
 **Flag precedence:** `-n` (`--no-tools`) takes absolute precedence over `-q` and `-b`. If `-n` is set, no tools are registered regardless of whether `-q` or `-b` are also present. The `clap` configuration should mark `-n` as conflicting with `-q` and `-b` to prevent confusing combinations.
 
@@ -174,6 +176,18 @@ Inspects generated commands for potentially dangerous patterns before outputting
 **Configuration:** Supports the `CMDIFY_UNSAFE` env var and `unsafe` config file field. Precedence: CLI flag > env var > config file > default (false).
 
 **Pattern categories:** Recursive delete (`rm -rf /`), disk destruction (`dd`, `mkfs`), system shutdown/reboot, privilege escalation writes, force kill all processes, package removal. The pattern list is conservative (prefers false positives over false negatives) and stored as a static array in the safety module.
+
+### 4.8 Setup Wizard (`setup.rs`)
+
+Interactive config wizard that creates or updates `~/.config/cmdify/config.toml`. See [Phase 10 — Interactive Setup](../implementation/phase-10-interactive-setup.md) for full design.
+
+**Behavior:**
+- `--setup` flag enters setup mode on an interactive terminal. On a non-interactive terminal, exits with an error.
+- When no config file exists and the terminal is interactive (and `--quiet` is not set), cmdify auto-enters setup mode before processing the prompt.
+- When no config file exists and the terminal is NOT interactive, cmdify prints a hint message to stderr suggesting `cmdify --setup`, unless `--quiet` is set.
+- Setup prompts for provider, model name, max tokens, and optional system prompt file. Existing config values are used as defaults.
+- API keys are NEVER written to the config file. Setup prints the appropriate `export` command for the user's shell profile.
+- All setup prompts go to stderr; stdout remains clean.
 
 ---
 

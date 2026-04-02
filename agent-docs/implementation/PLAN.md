@@ -19,6 +19,7 @@ This plan breaks the full `cmdify` design into incremental, testable phases. Eac
 | 7 | Cross-Compilation | Build targets for all platforms | Makefile dist, Raspbian arm, Apple Intel/Silicon |
 | 8 | CI/CD & Distribution | GitHub Actions, releases, polish | Automated testing, release workflow, docs |
 | 9 | Safety Check | Unsafe command detection, `--unsafe` flag | Safety module, pattern matching, CLI flag |
+| 10 | Interactive Setup | `--setup` flag, first-run detection, config wizard | Setup module, interactive prompts, config file creation |
 
 ---
 
@@ -35,6 +36,9 @@ Phase 8 (requires Phase 7 complete)
                                                                  │
                                                                  ▼
 Phase 9 (can start after Phase 1, independent of other phases)
+                                                                 │
+                                                                 ▼
+Phase 10 (requires Phase 1, benefits from Phase 6 for full provider list)
 ```
 
 Phase 7 (cross-compilation) can begin any time after Phase 1 produces a working binary, since the `Makefile dist` target is independent of provider/tool complexity. However, it benefits from Phase 5+ since those phases finalize the dependency list.
@@ -62,5 +66,6 @@ Phase 7 (cross-compilation) can begin any time after Phase 1 produces a working 
 - [Phase 7 — Cross-Compilation](./phase-7-cross-compilation.md)
 - [Phase 8 — CI/CD & Distribution](./phase-8-ci-distribution.md)
 - [Phase 9 — Safety Check](./phase-9-safety-check.md)
+- [Phase 10 — Interactive Setup](./phase-10-interactive-setup.md)
 - [Test Strategy](./test-strategy.md)
 - [Live Testing](./live-testing.md)

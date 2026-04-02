@@ -4,7 +4,7 @@ mod error;
 mod orchestrator;
 mod prompt;
 mod provider;
-mod throbber;
+mod spinner;
 
 use clap::Parser;
 use cli::Cli;
@@ -37,11 +37,11 @@ async fn main() {
         })
         .unwrap_or(1);
 
-    let throbber = throbber::Throbber::start(spinner);
+    let spinner_handle = spinner::Spinner::start(spinner);
 
     let result = orchestrator::run(&user_prompt, &config).await;
 
-    throbber.stop();
+    spinner_handle.stop();
 
     match result {
         Ok(content) => {

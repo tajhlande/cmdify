@@ -20,12 +20,12 @@ fn frames_for(selection: u8) -> &'static [char] {
     }
 }
 
-pub struct Throbber {
+pub struct Spinner {
     running: Option<Arc<AtomicBool>>,
     handle: Option<thread::JoinHandle<()>>,
 }
 
-impl Throbber {
+impl Spinner {
     pub fn start(selection: u8) -> Self {
         if !io::stderr().is_terminal() {
             return Self {

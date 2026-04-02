@@ -4,4 +4,4 @@ pub mod error;
 pub mod orchestrator;
 pub mod prompt;
 pub mod provider;
-pub mod throbber;
+pub mod spinner;

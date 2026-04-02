@@ -1,4 +1,4 @@
-# aicmd — Design Critiques
+# cmdify — Design Critiques
 
 This document records critiques, inconsistencies, gaps, and design risks identified across [`AGENTS.md`](../AGENTS.md), [`DESIGN.md`](./DESIGN.md), [`PROVIDERS.md`](./PROVIDERS.md), [`TOOLS.md`](./TOOLS.md), and [`BUILD.md`](./BUILD.md).
 
@@ -48,10 +48,10 @@ These two signatures are incompatible. The trait takes four discrete arguments; 
 [`TOOLS.md — Section 4.1`](./TOOLS.md) states: *"All user interaction goes to stdout."* But the final shell command is also printed to stdout. A user composing commands like:
 
 ```sh
-$(aicmd list files modified today)
+$(cmdify list files modified today)
 ```
 
-will have `ask_user` prompt strings (`> [aicmd] ...`) mixed into the captured output, corrupting the command. Interactive prompt text must go to **stderr** (or directly to `/dev/tty`), keeping stdout clean for the machine-readable command output. This is standard UNIX practice for interactive CLIs that are pipe-friendly.
+will have `ask_user` prompt strings (`> [cmdify] ...`) mixed into the captured output, corrupting the command. Interactive prompt text must go to **stderr** (or directly to `/dev/tty`), keeping stdout clean for the machine-readable command output. This is standard UNIX practice for interactive CLIs that are pipe-friendly.
 
 ---
 
@@ -62,7 +62,7 @@ will have `ask_user` prompt strings (`> [aicmd] ...`) mixed into the captured ou
 The [`ask_user`](./TOOLS.md) display example shows:
 
 ```
-> [aicmd] Use fd or find?
+> [cmdify] Use fd or find?
   A) fd
   B) find
 ```
@@ -124,7 +124,7 @@ The [`Config`](./BUILD.md) struct has a field pair for every supported provider 
 - Secrets for all providers are loaded into memory even when irrelevant.
 - Adding a new provider means touching the monolithic `Config` struct.
 
-**Recommended fix:** Load only the selected provider's configuration after `AICMD_PROVIDER_NAME` is read. Each provider should implement its own `Config::from_env()` or similar method.
+**Recommended fix:** Load only the selected provider's configuration after `CMDIFY_PROVIDER_NAME` is read. Each provider should implement its own `Config::from_env()` or similar method.
 
 ---
 
@@ -132,7 +132,7 @@ The [`Config`](./BUILD.md) struct has a field pair for every supported provider 
 
 **Severity: Medium — Anthropic requests will fail without it**
 
-Anthropic's API requires `max_tokens` as a mandatory field. [`PROVIDERS.md — Section 3.2`](./PROVIDERS.md) shows a hardcoded `"max_tokens": 1024` in the wire format example, but this value is not mentioned in any configuration table, env var list ([`BUILD.md — Section 1`](./BUILD.md)), or the `Config` struct. A hardcoded 1024 tokens is too low for complex commands with long reasoning chains. This should be configurable, e.g., via `AICMD_MAX_TOKENS` with a sensible default like 4096.
+Anthropic's API requires `max_tokens` as a mandatory field. [`PROVIDERS.md — Section 3.2`](./PROVIDERS.md) shows a hardcoded `"max_tokens": 1024` in the wire format example, but this value is not mentioned in any configuration table, env var list ([`BUILD.md — Section 1`](./BUILD.md)), or the `Config` struct. A hardcoded 1024 tokens is too low for complex commands with long reasoning chains. This should be configurable, e.g., via `CMDIFY_MAX_TOKENS` with a sensible default like 4096.
 
 ---
 
@@ -154,7 +154,7 @@ The system prompt is compile-time-only via [`include_str!()`](./DESIGN.md). Ther
 - Power-users can't customize behavior without forking.
 - Integration tests must use the compiled-in prompt.
 
-A simple `AICMD_SYSTEM_PROMPT` env var (path to a file, or an inline string) would address this with minimal implementation cost.
+A simple `CMDIFY_SYSTEM_PROMPT` env var (path to a file, or an inline string) would address this with minimal implementation cost.
 
 ---
 
@@ -232,9 +232,9 @@ A simple `AICMD_SYSTEM_PROMPT` env var (path to a file, or an inline string) wou
 | 5 | ✅ Resolved | `ToolOutput` is `{ content: String }` only; providers own role mapping |
 | 6 | ✅ Resolved | Single `Message::Assistant`; correct ordering fixed in #15 |
 | 7 | ✅ Resolved | Two-stage `Config::from_env()` loads only active provider credentials |
-| 8 | ✅ Resolved | `AICMD_MAX_TOKENS` env var with 4096 default |
+| 8 | ✅ Resolved | `CMDIFY_MAX_TOKENS` env var with 4096 default |
 | 9 | ✅ Resolved | `command -v` primary, `which` as fallback |
-| 10 | ✅ Resolved | `AICMD_SYSTEM_PROMPT` env var added |
+| 10 | ✅ Resolved | `CMDIFY_SYSTEM_PROMPT` env var added |
 | 11 | ✅ Resolved | `-n` documented as taking absolute precedence; `clap` conflict configured |
 | 12 | 🔴 Not addressed | Empty stubs remain in `AGENTS.md` (user doc, outside design scope) |
 | 13 | 🟡 Partially | CI workflow file path named in `BUILD.md`; actual file still absent |
@@ -328,7 +328,7 @@ The [`Error`](./BUILD.md#3-error-handling) enum covers `ConfigError`, `ProviderE
 Two distinct code paths produce I/O errors:
 
 1. **`ask_user` stdin reads** — reading user input in [`tools/ask_user.rs`](./DESIGN.md) can fail with an `io::Error` (e.g., stdin closed, TTY unavailable, timeout handling with `spawn_blocking`).
-2. **`AICMD_SYSTEM_PROMPT` file loading** — the system prompt file path feature in [`prompt.rs`](./DESIGN.md) reads a file at startup, which can fail with `io::Error` (file not found, permission denied, etc.).
+2. **`CMDIFY_SYSTEM_PROMPT` file loading** — the system prompt file path feature in [`prompt.rs`](./DESIGN.md) reads a file at startup, which can fail with `io::Error` (file not found, permission denied, etc.).
 
 Without an `IoError` variant, these errors must be mapped into `ToolError(String)` or `ConfigError(String)` with `to_string()`, discarding the original error type and making it harder to pattern-match on specific failure modes in tests.
 

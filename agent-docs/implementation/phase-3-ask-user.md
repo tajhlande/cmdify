@@ -34,7 +34,7 @@ Per `TOOLS.md §4.1`:
 - Receives `question` (string) and `choices` (array of `{ key, label }` objects)
 - Prints to **stderr** (not stdout):
   ```
-  > [aicmd] Use fd or find?
+  > [cmdify] Use fd or find?
     A) use fd
     B) use find
   > Your choice:
@@ -85,5 +85,5 @@ Update `src/system_prompt.txt` to:
 - [ ] `-n` / `--no-tools` disables all tools
 - [ ] `-n` conflicts with `-q` and `-b` in clap
 - [ ] Interactive prompts go to stderr, not stdout
-- [ ] Pipe usage works: `$(aicmd list files)` captures only the final command
+- [ ] Pipe usage works: `$(cmdify list files)` captures only the final command
 - [ ] `make check` passes

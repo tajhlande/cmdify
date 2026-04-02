@@ -8,7 +8,7 @@ Get a working binary that sends a natural language request to any OpenAI-compati
 
 - Project scaffolding (Cargo.toml, module structure)
 - CLI argument parsing with `clap`
-- Environment variable configuration (`AICMD_PROVIDER_NAME`, `AICMD_MODEL_NAME`, `AICMD_COMPLETIONS_URL`, `AICMD_COMPLETIONS_KEY`)
+- Environment variable configuration (`CMDIFY_PROVIDER_NAME`, `CMDIFY_MODEL_NAME`, `CMDIFY_COMPLETIONS_URL`, `CMDIFY_COMPLETIONS_KEY`)
 - System prompt (embedded at compile time via `include_str!`)
 - Shell detection (`$SHELL` env var, appended to system prompt)
 - Single provider: `completions` (generic OpenAI-compatible `/v1/chat/completions`)
@@ -16,7 +16,7 @@ Get a working binary that sends a natural language request to any OpenAI-compati
 - No tools, no tool call loop
 - Basic `Makefile` (`build`, `dev`, `test`, `lint`, `fmt`, `check`, `clean`, `install`)
 - Error handling (`thiserror` Error enum)
-- System prompt runtime override via `AICMD_SYSTEM_PROMPT` env var
+- System prompt runtime override via `CMDIFY_SYSTEM_PROMPT` env var
 
 ## Files to Create
 
@@ -87,7 +87,7 @@ Type alias `Result<T> = std::result::Result<T, Error>`.
 
 ### 1.3 CLI (`src/cli.rs`)
 
-- `clap` derive struct with `#[command(name = "aicmd", about, version)]`
+- `clap` derive struct with `#[command(name = "cmdify", about, version)]`
 - Positional args: `prompt: Vec<String>` (joined with spaces)
 - Flags: `--quiet` / `-q`, `--blind` / `-b`, `--no-tools` / `-n` (parsed but unused until later phases)
 - If no positional args, print help and exit 0
@@ -98,14 +98,14 @@ Type alias `Result<T> = std::result::Result<T, Error>`.
 - `ProviderSettings` struct: `api_key` (Option<String> — not required), `base_url` (String)
 - `AuthStyle` enum: `Header { name, prefix }`, `QueryParam { name }`
 - `Config::from_env()`:
-  - Read `AICMD_PROVIDER_NAME` (required)
-  - Read `AICMD_MODEL_NAME` (required)
-  - Read `AICMD_MAX_TOKENS` (optional, default 4096)
-  - Read `AICMD_SYSTEM_PROMPT` (optional path to file)
+  - Read `CMDIFY_PROVIDER_NAME` (required)
+  - Read `CMDIFY_MODEL_NAME` (required)
+  - Read `CMDIFY_MAX_TOKENS` (optional, default 4096)
+  - Read `CMDIFY_SYSTEM_PROMPT` (optional path to file)
   - Load provider settings based on provider name
 - For the `completions` provider:
-  - `AICMD_COMPLETIONS_URL` required
-  - `AICMD_COMPLETIONS_KEY` optional (some local models need no auth)
+  - `CMDIFY_COMPLETIONS_URL` required
+  - `CMDIFY_COMPLETIONS_KEY` optional (some local models need no auth)
 - **API key is optional**: if not set, requests are sent without an auth header
 
 ### 1.5 Shared types (`src/provider/mod.rs`)
@@ -182,7 +182,7 @@ Implements `Provider` for OpenAI-compatible `/v1/chat/completions`.
 - `src/prompt.rs`:
   - `pub const EMBEDDED_SYSTEM_PROMPT: &str = include_str!("system_prompt.txt");`
   - `pub fn load_system_prompt(config: &Config) -> Result<String>`:
-    - If `AICMD_SYSTEM_PROMPT` is set, read file at that path
+    - If `CMDIFY_SYSTEM_PROMPT` is set, read file at that path
     - Otherwise, use `EMBEDDED_SYSTEM_PROMPT`
     - Append shell detection: detect `$SHELL`, append `"The user's shell is {shell}."`
 
@@ -217,10 +217,10 @@ Single-shot flow (no tool loop yet):
 ## Acceptance Criteria
 
 - [ ] `cargo build --release` produces a static binary with no external runtime dependencies
-- [ ] `AICMD_PROVIDER_NAME=completions AICMD_MODEL_NAME=llama3 AICMD_COMPLETIONS_URL=http://localhost:11434 aicmd list all files` sends a request to the local endpoint and prints a command
-- [ ] `AICMD_PROVIDER_NAME=completions AICMD_MODEL_NAME=llama3 AICMD_COMPLETIONS_URL=http://localhost:11434 aicmd` (no args) prints help and exits 0
+- [ ] `CMDIFY_PROVIDER_NAME=completions CMDIFY_MODEL_NAME=llama3 CMDIFY_COMPLETIONS_URL=http://localhost:11434 cmdify list all files` sends a request to the local endpoint and prints a command
+- [ ] `CMDIFY_PROVIDER_NAME=completions CMDIFY_MODEL_NAME=llama3 CMDIFY_COMPLETIONS_URL=http://localhost:11434 cmdify` (no args) prints help and exits 0
 - [ ] No API key required — works against local models with no auth
-- [ ] API key used when provided via `AICMD_COMPLETIONS_KEY`
+- [ ] API key used when provided via `CMDIFY_COMPLETIONS_KEY`
 - [ ] `make check` passes (clippy + fmt + test)
 - [ ] Shell detected and included in system prompt
-- [ ] `AICMD_SYSTEM_PROMPT` env var overrides compiled-in prompt
+- [ ] `CMDIFY_SYSTEM_PROMPT` env var overrides compiled-in prompt

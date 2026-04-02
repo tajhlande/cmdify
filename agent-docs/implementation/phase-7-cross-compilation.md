@@ -76,7 +76,7 @@ dist:
 		echo "Building for $$target..."; \
 		cargo build --release --target $$target; \
 		mkdir -p $(DIST_DIR)/$$target; \
-		cp target/$$target/release/aicmd $(DIST_DIR)/$$target/; \
+		cp target/$$target/release/cmdify $(DIST_DIR)/$$target/; \
 	done
 	@echo "All binaries built in $(DIST_DIR)/"
 
@@ -114,7 +114,7 @@ After building, verify each binary:
 ```makefile
 dist-verify:
 	@for target in $(TARGETS); do \
-		file $(DIST_DIR)/$$target/aicmd; \
+		file $(DIST_DIR)/$$target/cmdify; \
 	done
 ```
 

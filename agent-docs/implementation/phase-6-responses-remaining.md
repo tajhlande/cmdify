@@ -52,8 +52,8 @@ Full custom implementation per `PROVIDERS.md §3.4`:
 - Tool results: `Message::ToolResult` → `{ type: "function_call_output", call_id, output }`
 
 **Config:**
-- `AICMD_RESPONSES_URL` (required, no default)
-- `AICMD_RESPONSES_KEY` (optional)
+- `CMDIFY_RESPONSES_URL` (required, no default)
+- `CMDIFY_RESPONSES_KEY` (optional)
 
 ### 6.2 Remaining completions-category providers
 
@@ -111,7 +111,7 @@ pub fn create_provider(config: &Config) -> Result<Box<dyn Provider>> {
 
 ## Acceptance Criteria
 
-- [ ] `AICMD_PROVIDER_NAME=responses AICMD_MODEL_NAME=... AICMD_RESPONSES_URL=... aicmd find files` works
+- [ ] `CMDIFY_PROVIDER_NAME=responses CMDIFY_MODEL_NAME=... CMDIFY_RESPONSES_URL=... cmdify find files` works
 - [ ] All 12 providers are functional (with appropriate API keys and models)
 - [ ] Unknown provider name produces a clear error message
 - [ ] All providers support tools where applicable

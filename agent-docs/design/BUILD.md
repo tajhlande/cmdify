@@ -1,17 +1,39 @@
-# aicmd — Build, Configuration & Testing
+# cmdify — Build, Configuration & Testing
 
 ## 1. Configuration
 
-All config is read from environment variables at startup, validated, and held in a `Config` struct. Missing required vars produce a clear error message on stderr and exit with code 1.
+Configuration uses a three-layer precedence: **environment variable > config file > hardcoded default**.
+
+Non-secret settings (`provider_name`, `model_name`, `max_tokens`, `system_prompt`) can be provided in either environment variables or a config file. API keys are always read from environment variables only — they are intentionally excluded from the config file to avoid storing secrets in plaintext on disk.
+
+Missing required settings (when neither env var nor config file provides them) produce a clear error message on stderr and exit with code 1.
+
+### 1.0 Config File
+
+An optional TOML file can provide default values for non-secret settings. The file is searched at:
+
+1. `$XDG_CONFIG_HOME/cmdify/config.toml` (if `XDG_CONFIG_HOME` is set)
+2. `$HOME/.config/cmdify/config.toml` (fallback)
+
+The file is entirely optional. If it does not exist, all settings must come from environment variables or defaults.
+
+```toml
+provider_name = "openai"
+model_name = "gpt-4o"
+max_tokens = 4096
+system_prompt = "/path/to/custom_prompt.txt"
+```
+
+Only the keys listed above are recognized. Unknown keys are silently ignored by the TOML parser.
 
 ### 1.1 Core Settings
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `AICMD_PROVIDER_NAME` | Yes | — | Provider identifier (e.g., `openai`, `completions`, `anthropic`) |
-| `AICMD_MODEL_NAME` | Yes | — | Model name to use (e.g., `gpt-4`, `claude-sonnet-4-20250514`) |
-| `AICMD_MAX_TOKENS` | No | 4096 | Max tokens for providers that require it (e.g., Anthropic) |
-| `AICMD_SYSTEM_PROMPT` | No | — | Path to a file containing a custom system prompt, overriding the compiled-in default |
+| `CMDIFY_PROVIDER_NAME` / `provider_name` | Yes | — | Provider identifier (e.g., `openai`, `completions`, `anthropic`) |
+| `CMDIFY_MODEL_NAME` / `model_name` | Yes | — | Model name to use (e.g., `gpt-4`, `claude-sonnet-4-20250514`) |
+| `CMDIFY_MAX_TOKENS` / `max_tokens` | No | 4096 | Max tokens for providers that require it (e.g., Anthropic) |
+| `CMDIFY_SYSTEM_PROMPT` / `system_prompt` | No | — | Path to a file containing a custom system prompt, overriding the compiled-in default |
 
 ### 1.2 Per-Provider Settings
 
@@ -25,10 +47,10 @@ Each provider only reads its own variables. Unrelated variables are ignored.
 | `ANTHROPIC_BASE_URL` | anthropic | Custom base URL (default: `https://api.anthropic.com`) |
 | `GEMINI_API_KEY` | gemini | API key (sent as `?key=` query parameter) |
 | `GEMINI_BASE_URL` | gemini | Custom base URL (default: `https://generativelanguage.googleapis.com`) |
-| `AICMD_COMPLETIONS_KEY` | completions | API key |
-| `AICMD_COMPLETIONS_URL` | completions | API URL (required — no default) |
-| `AICMD_RESPONSES_KEY` | responses | API key |
-| `AICMD_RESPONSES_URL` | responses | API URL (required — no default) |
+| `CMDIFY_COMPLETIONS_KEY` | completions | API key |
+| `CMDIFY_COMPLETIONS_URL` | completions | API URL (required — no default) |
+| `CMDIFY_RESPONSES_KEY` | responses | API key |
+| `CMDIFY_RESPONSES_URL` | responses | API URL (required — no default) |
 | `ZAI_API_KEY` | zai | API key |
 | `ZAI_BASE_URL` | zai | Custom base URL (default: `https://api.z.ai`) |
 | `MINIMAX_API_KEY` | minimax | API key |
@@ -46,7 +68,19 @@ Each provider only reads its own variables. Unrelated variables are ignored.
 
 ### 1.3 Config Struct
 
-Configuration is loaded in two stages: core settings first, then provider-specific settings based on `AICMD_PROVIDER_NAME`. This avoids eagerly loading credentials for unused providers.
+Configuration is loaded in three layers (env var > config file > default), then provider-specific settings based on `CMDIFY_PROVIDER_NAME`. This avoids eagerly loading credentials for unused providers.
+
+**FileConfig** (internal, deserialized from TOML):
+
+```rust
+#[derive(Deserialize)]
+struct FileConfig {
+    provider_name: Option<String>,
+    model_name: Option<String>,
+    max_tokens: Option<u32>,
+    system_prompt: Option<String>,
+}
+```
 
 ```rust
 pub enum AuthStyle {
@@ -66,11 +100,47 @@ Most providers use `AuthStyle::Header { name: "Authorization", prefix: "Bearer "
 ```rust
 impl Config {
     pub fn from_env() -> Result<Self> {
-        let provider_name = env::var("AICMD_PROVIDER_NAME")
-            .map_err(|_| Error::ConfigError("AICMD_PROVIDER_NAME is required".into()))?;
-        let model_name = env::var("AICMD_MODEL_NAME")
-            .map_err(|_| Error::ConfigError("AICMD_MODEL_NAME is required".into()))?;
-        let max_tokens = env::var("AICMD_MAX_TOKENS")
+        let file_config = config_file_path()
+            .map(|p| load_file_config(&p))
+            .transpose()?;
+
+        let provider_name = env::var("CMDIFY_PROVIDER_NAME").ok()
+            .or_else(|| file_config.as_ref().and_then(|f| f.provider_name.clone()))
+            .ok_or_else(|| Error::ConfigError(
+                "CMDIFY_PROVIDER_NAME is required (set env var or provider_name in config file)".into(),
+            ))?;
+
+        let model_name = env::var("CMDIFY_MODEL_NAME").ok()
+            .or_else(|| file_config.as_ref().and_then(|f| f.model_name.clone()))
+            .ok_or_else(|| Error::ConfigError(
+                "CMDIFY_MODEL_NAME is required (set env var or model_name in config file)".into(),
+            ))?;
+
+        let max_tokens = env::var("CMDIFY_MAX_TOKENS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .or_else(|| file_config.as_ref().and_then(|f| f.max_tokens))
+            .unwrap_or(4096);
+
+        let system_prompt_override = env::var("CMDIFY_SYSTEM_PROMPT").ok()
+            .or_else(|| file_config.as_ref().and_then(|f| f.system_prompt.clone()));
+
+        let provider_settings = ProviderSettings::from_env(&provider_name)?;
+        Ok(Self { provider_name, model_name, max_tokens, system_prompt_override, provider_settings })
+    }
+}
+```
+
+Most providers use `AuthStyle::Header { name: "Authorization", prefix: "Bearer " }`. Anthropic uses `AuthStyle::Header { name: "x-api-key", prefix: "" }`. Gemini uses `AuthStyle::QueryParam { name: "key" }`. Each provider reads the key and applies it according to its `auth_style`.
+
+```rust
+impl Config {
+    pub fn from_env() -> Result<Self> {
+        let provider_name = env::var("CMDIFY_PROVIDER_NAME")
+            .map_err(|_| Error::ConfigError("CMDIFY_PROVIDER_NAME is required".into()))?;
+        let model_name = env::var("CMDIFY_MODEL_NAME")
+            .map_err(|_| Error::ConfigError("CMDIFY_MODEL_NAME is required".into()))?;
+        let max_tokens = env::var("CMDIFY_MAX_TOKENS")
             .ok()
             .and_then(|v| v.parse().ok())
             .unwrap_or(4096);
@@ -85,8 +155,8 @@ impl ProviderSettings {
             "openai" => Self::header("OPENAI_API_KEY", "OPENAI_BASE_URL", "https://api.openai.com", "Authorization", "Bearer "),
             "anthropic" => Self::header("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "https://api.anthropic.com", "x-api-key", ""),
             "gemini" => Self::query_param("GEMINI_API_KEY", "GEMINI_BASE_URL", "https://generativelanguage.googleapis.com", "key"),
-            "completions" => Self::header_required_url("AICMD_COMPLETIONS_KEY", "AICMD_COMPLETIONS_URL", "Authorization", "Bearer "),
-            "responses" => Self::header_required_url("AICMD_RESPONSES_KEY", "AICMD_RESPONSES_URL", "Authorization", "Bearer "),
+            "completions" => Self::header_required_url("CMDIFY_COMPLETIONS_KEY", "CMDIFY_COMPLETIONS_URL", "Authorization", "Bearer "),
+            "responses" => Self::header_required_url("CMDIFY_RESPONSES_KEY", "CMDIFY_RESPONSES_URL", "Authorization", "Bearer "),
             // ... each named provider with its own key/base URL/auth defaults
             other => Err(Error::ConfigError(format!("unknown provider: {}", other))),
         }
@@ -129,6 +199,7 @@ Only the selected provider's credentials are loaded. Misconfigured keys for othe
 | `tokio` | Async runtime | `rt-multi-thread`, `macros`, `process`, `io-util`, `time` |
 | `serde` | Serialization | `derive` feature |
 | `serde_json` | JSON handling | |
+| `toml` | Config file parsing | TOML deserialization for `FileConfig` |
 | `async-trait` | Async trait support | for Provider and Tool traits |
 | `thiserror` | Error enum derivation | |
 
@@ -198,7 +269,7 @@ Builds static binaries for supported platforms:
 
 Musl targets require the `rust-lld` linker and may need `x86_64-unknown-linux-musl` / `aarch64-unknown-linux-musl` toolchains installed via `rustup`.
 
-Output binaries are placed in `target/dist/<target_name>/aicmd`.
+Output binaries are placed in `target/dist/<target_name>/cmdify`.
 
 ### 4.3 No Build Script
 
@@ -214,7 +285,7 @@ Live in each source file inside `#[cfg(test)] mod tests { ... }` blocks.
 
 | Layer | Approach |
 |-------|----------|
-| `config` | Test with env vars set/unset; verify error messages for missing required vars |
+| `config` | Test with env vars set/unset; verify error messages for missing required vars; test TOML config file parsing, precedence (env > file > default), and XDG/HOME path resolution |
 | `cli` | Test via `clap`'s `CommandFactory` testing utilities; verify flag parsing and help output |
 | `tools/` | Test `find_command` with mocked subprocess; test `ask_user` with mocked stdin |
 | `provider/` | Test wire format serialization (format_tools, parse_tool_calls) with sample JSON |
@@ -225,7 +296,7 @@ Live in `tests/` at the project root.
 
 | Test file | Approach |
 |-----------|----------|
-| `config_test.rs` | Integration tests for config loading with real env vars |
+| `config_test.rs` | Integration tests for config loading with env vars and config file precedence |
 | `provider_test.rs` | Integration tests with a mock HTTP server (e.g., `wiremock` or `mockito`) |
 | `tools_test.rs` | Integration tests for tool execution with real subprocesses where safe |
 | `orchestrator_test.rs` | End-to-end tests with a mock provider that returns canned responses |

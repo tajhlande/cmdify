@@ -107,8 +107,8 @@ Unlike the generic `completions` provider (where the key is optional for local m
 
 ## Acceptance Criteria
 
-- [ ] `AICMD_PROVIDER_NAME=openrouter AICMD_MODEL_NAME=... OPENROUTER_API_KEY=... aicmd find files` works
-- [ ] `AICMD_PROVIDER_NAME=huggingface AICMD_MODEL_NAME=... HUGGINGFACE_API_KEY=... aicmd find files` works
+- [ ] `CMDIFY_PROVIDER_NAME=openrouter CMDIFY_MODEL_NAME=... OPENROUTER_API_KEY=... cmdify find files` works
+- [ ] `CMDIFY_PROVIDER_NAME=huggingface CMDIFY_MODEL_NAME=... HUGGINGFACE_API_KEY=... cmdify find files` works
 - [ ] Both providers support tools (find_command, ask_user) via shared completions logic
 - [ ] Missing API key produces clear error message
 - [ ] Base URL can be overridden via `OPENROUTER_BASE_URL` / `HUGGINGFACE_BASE_URL`

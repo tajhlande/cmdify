@@ -1,4 +1,4 @@
-# aicmd — Tool System Design
+# cmdify — Tool System Design
 
 ## 1. Core Abstractions (`tools/mod.rs`)
 
@@ -145,7 +145,7 @@ ToolDefinition {
 ```
 1. Receive (question: "Use fd or find?", choices: [{ key: "A", label: "use fd" }, { key: "B", label: "use find" }])
 2. Print to stderr:
-      > [aicmd] Use fd or find?
+      > [cmdify] Use fd or find?
         A) use fd
         B) use find
       > Your choice:
@@ -157,7 +157,7 @@ ToolDefinition {
 
 - **Timeout**: 60 seconds. If no input is received, return `ToolOutput { content: "(no response)" }` so the model can proceed or ask again.
 - **Invalid input**: If the user's input doesn't match any choice key, return the raw input as-is with a note: `ToolOutput { content: "X (not a valid choice)" }`. The model decides how to handle it.
-- **Output channel**: All user-facing prompts and interactive text go to **stderr**, keeping stdout clean for the final command output. This ensures pipe usage like `$(aicmd find files)` works correctly.
+- **Output channel**: All user-facing prompts and interactive text go to **stderr**, keeping stdout clean for the final command output. This ensures pipe usage like `$(cmdify find files)` works correctly.
 - **Stdin blocking**: Reading stdin is done in a blocking manner. The tokio runtime should allow blocking on stdin (use `tokio::task::spawn_blocking` or `tokio::io::stdin()`).
 - **Display format**: Each choice is displayed as `{key}) {label}`, where `key` is the single-letter identifier and `label` is the model-provided descriptive text.
 

@@ -118,9 +118,9 @@ Add `AuthStyle::QueryParam` handling for Gemini in `ProviderSettings::from_env()
 
 ## Acceptance Criteria
 
-- [ ] `AICMD_PROVIDER_NAME=openai AICMD_MODEL_NAME=gpt-4 OPENAI_API_KEY=... aicmd find files` works
-- [ ] `AICMD_PROVIDER_NAME=anthropic AICMD_MODEL_NAME=claude-sonnet-4-20250514 ANTHROPIC_API_KEY=... aicmd find files` works
-- [ ] `AICMD_PROVIDER_NAME=gemini AICMD_MODEL_NAME=gemini-2.5-flash GEMINI_API_KEY=... aicmd find files` works
+- [ ] `CMDIFY_PROVIDER_NAME=openai CMDIFY_MODEL_NAME=gpt-4 OPENAI_API_KEY=... cmdify find files` works
+- [ ] `CMDIFY_PROVIDER_NAME=anthropic CMDIFY_MODEL_NAME=claude-sonnet-4-20250514 ANTHROPIC_API_KEY=... cmdify find files` works
+- [ ] `CMDIFY_PROVIDER_NAME=gemini CMDIFY_MODEL_NAME=gemini-2.5-flash GEMINI_API_KEY=... cmdify find files` works
 - [ ] All three providers support tools
 - [ ] Gemini correctly distinguishes `STOP` for tool calls vs final answers
 - [ ] Anthropic system prompt is sent in top-level field, not messages array

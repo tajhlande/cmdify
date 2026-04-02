@@ -1,4 +1,4 @@
-# aicmd — Provider Design
+# cmdify — Provider Design
 
 ## 1. Provider Trait (`provider/mod.rs`)
 
@@ -118,8 +118,8 @@ The generic providers have no default URL — they require the user to set the U
 
 | Provider | URL Env Var | Key Env Var |
 |----------|-------------|-------------|
-| `completions` | `AICMD_COMPLETIONS_URL` | `AICMD_COMPLETIONS_KEY` |
-| `responses` | `AICMD_RESPONSES_URL` | `AICMD_RESPONSES_KEY` |
+| `completions` | `CMDIFY_COMPLETIONS_URL` | `CMDIFY_COMPLETIONS_KEY` |
+| `responses` | `CMDIFY_RESPONSES_URL` | `CMDIFY_RESPONSES_KEY` |
 
 ---
 

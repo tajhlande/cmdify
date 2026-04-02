@@ -92,8 +92,8 @@ jobs:
       - run: cargo build --release --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v4
         with:
-          name: aicmd-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/aicmd
+          name: cmdify-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/cmdify
 
   build-macos:
     runs-on: macos-latest
@@ -109,8 +109,8 @@ jobs:
       - run: cargo build --release --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v4
         with:
-          name: aicmd-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/aicmd
+          name: cmdify-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/cmdify
 
   release:
     needs: [build, build-macos]
@@ -119,7 +119,7 @@ jobs:
       - uses: actions/download-artifact@v4
       - uses: softprops/action-gh-release@v2
         with:
-          files: aicmd-*/aicmd
+          files: cmdify-*/cmdify
 ```
 
 ### 8.3 README.md

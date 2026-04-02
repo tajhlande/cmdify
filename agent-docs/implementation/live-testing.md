@@ -25,13 +25,13 @@ Shell scripts that demonstrate and validate each provider. Each script:
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${AICMD_COMPLETIONS_URL:?AICMD_COMPLETIONS_URL is required}"
-: "${AICMD_MODEL_NAME:?AICMD_MODEL_NAME is required}"
-# AICMD_COMPLETIONS_KEY is optional (e.g., local Ollama needs no key)
+: "${CMDIFY_COMPLETIONS_URL:?CMDIFY_COMPLETIONS_URL is required}"
+: "${CMDIFY_MODEL_NAME:?CMDIFY_MODEL_NAME is required}"
+# CMDIFY_COMPLETIONS_KEY is optional (e.g., local Ollama needs no key)
 
-export AICMD_PROVIDER_NAME=completions
+export CMDIFY_PROVIDER_NAME=completions
 
-BIN="${1:-./target/release/aicmd}"
+BIN="${1:-./target/release/cmdify}"
 
 prompts=(
   "list all files in the current directory"
@@ -65,11 +65,11 @@ echo "Results: $pass passed, $fail failed"
 set -euo pipefail
 
 : "${OPENAI_API_KEY:?OPENAI_API_KEY is required}"
-: "${AICMD_MODEL_NAME:?AICMD_MODEL_NAME is required}"
+: "${CMDIFY_MODEL_NAME:?CMDIFY_MODEL_NAME is required}"
 
-export AICMD_PROVIDER_NAME=openai
+export CMDIFY_PROVIDER_NAME=openai
 
-BIN="${1:-./target/release/aicmd}"
+BIN="${1:-./target/release/cmdify}"
 
 prompts=(
   "list all files in the current directory"
@@ -103,11 +103,11 @@ echo "Results: $pass passed, $fail failed"
 set -euo pipefail
 
 : "${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required}"
-: "${AICMD_MODEL_NAME:?AICMD_MODEL_NAME is required}"
+: "${CMDIFY_MODEL_NAME:?CMDIFY_MODEL_NAME is required}"
 
-export AICMD_PROVIDER_NAME=anthropic
+export CMDIFY_PROVIDER_NAME=anthropic
 
-BIN="${1:-./target/release/aicmd}"
+BIN="${1:-./target/release/cmdify}"
 
 prompts=(
   "list all files in the current directory"
@@ -141,11 +141,11 @@ echo "Results: $pass passed, $fail failed"
 set -euo pipefail
 
 : "${GEMINI_API_KEY:?GEMINI_API_KEY is required}"
-: "${AICMD_MODEL_NAME:?AICMD_MODEL_NAME is required}"
+: "${CMDIFY_MODEL_NAME:?CMDIFY_MODEL_NAME is required}"
 
-export AICMD_PROVIDER_NAME=gemini
+export CMDIFY_PROVIDER_NAME=gemini
 
-BIN="${1:-./target/release/aicmd}"
+BIN="${1:-./target/release/cmdify}"
 
 prompts=(
   "list all files in the current directory"
@@ -180,11 +180,11 @@ Tests tool-enabled scenarios (requires Phase 2+):
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Uses whatever provider is configured via AICMD_PROVIDER_NAME and related vars
-: "${AICMD_PROVIDER_NAME:?AICMD_PROVIDER_NAME is required}"
-: "${AICMD_MODEL_NAME:?AICMD_MODEL_NAME is required}"
+# Uses whatever provider is configured via CMDIFY_PROVIDER_NAME and related vars
+: "${CMDIFY_PROVIDER_NAME:?CMDIFY_PROVIDER_NAME is required}"
+: "${CMDIFY_MODEL_NAME:?CMDIFY_MODEL_NAME is required}"
 
-BIN="${1:-./target/release/aicmd}"
+BIN="${1:-./target/release/cmdify}"
 
 echo "=== Tool tests (find_command) ==="
 echo -n "  find_command triggers on 'search with ripgrep' ... "
@@ -209,19 +209,19 @@ echo "  Run manually: $BIN 'archive these files'"
 make build
 
 # Test local model (no API key needed)
-AICMD_MODEL_NAME=llama3 AICMD_COMPLETIONS_URL=http://localhost:11434 ./examples/test-completions.sh
+CMDIFY_MODEL_NAME=llama3 CMDIFY_COMPLETIONS_URL=http://localhost:11434 ./examples/test-completions.sh
 
 # Test OpenAI
-AICMD_MODEL_NAME=gpt-4o-mini ./examples/test-openai.sh
+CMDIFY_MODEL_NAME=gpt-4o-mini ./examples/test-openai.sh
 
 # Test Anthropic
-AICMD_MODEL_NAME=claude-sonnet-4-20250514 ./examples/test-anthropic.sh
+CMDIFY_MODEL_NAME=claude-sonnet-4-20250514 ./examples/test-anthropic.sh
 
 # Test Gemini
-AICMD_MODEL_NAME=gemini-2.5-flash ./examples/test-gemini.sh
+CMDIFY_MODEL_NAME=gemini-2.5-flash ./examples/test-gemini.sh
 
 # Test with a custom binary path
-./examples/test-openai.sh ./target/debug/aicmd
+./examples/test-openai.sh ./target/debug/cmdify
 ```
 
 ---
@@ -230,7 +230,7 @@ AICMD_MODEL_NAME=gemini-2.5-flash ./examples/test-gemini.sh
 
 - Scripts require their provider's API key to be set in the environment (or shell profile). They fail fast with a clear message if missing.
 - All interactive output from `ask_user` goes to stderr and is suppressed via `2>/dev/null` in automated runs. Manual runs can omit the redirect to see the full interaction.
-- Scripts accept an optional binary path argument (defaults to `./target/release/aicmd`).
+- Scripts accept an optional binary path argument (defaults to `./target/release/cmdify`).
 - Scripts exit 0 on all pass, 1 on any fail.
 - Each provider script follows an identical structure — easy to copy for new providers.
 - These scripts are **not** tracked as test coverage. They are validation and documentation.

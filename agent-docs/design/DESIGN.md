@@ -1,8 +1,8 @@
-# aicmd — Architecture & Design Document
+# cmdify — Architecture & Design Document
 
 ## 1. Overview
 
-`aicmd` is a native Rust CLI binary that translates natural language input into shell commands by querying LLM services. It supports multiple providers, exposes interactive tools to the model, and is configured entirely through environment variables and CLI flags.
+`cmdify` is a native Rust CLI binary that translates natural language input into shell commands by querying LLM services. It supports multiple providers, exposes interactive tools to the model, and is configured entirely through environment variables and CLI flags.
 
 **Related design docs:**
 
@@ -128,7 +128,7 @@ Startup sequence:
 
 ```
 1. Assemble user prompt from CLI args
-2. Load system prompt (compiled-in via include_str!, with optional runtime override via AICMD_SYSTEM_PROMPT)
+2. Load system prompt (compiled-in via include_str!, with optional runtime override via CMDIFY_SYSTEM_PROMPT)
 3. Detect shell ($SHELL env var) and append to system prompt
 4. Build ToolRegistry based on CLI flags (quiet, blind, no-tools)
 5. Create provider instance from config
@@ -145,7 +145,7 @@ pub const EMBEDDED_SYSTEM_PROMPT: &str = include_str!("system_prompt.txt");
 
 This has no impact on the build process — `cargo build` picks up the file automatically and embeds its contents as a `&'static str`. No runtime file I/O is needed for the default case.
 
-**Runtime override:** If the `AICMD_SYSTEM_PROMPT` env var is set, its value is treated as a path to a file, and the contents of that file are used instead of the compiled-in prompt. This allows testing prompt changes without recompilation and lets power-users customize behavior.
+**Runtime override:** If the `CMDIFY_SYSTEM_PROMPT` env var is set, its value is treated as a path to a file, and the contents of that file are used instead of the compiled-in prompt. This allows testing prompt changes without recompilation and lets power-users customize behavior.
 
 **Shell detection:** At startup, the orchestrator detects the user's shell via the `$SHELL` env var (defaulting to `"bash"` if unset) and appends it to the system prompt as context (e.g., `"The user's shell is zsh."`). This means the final system prompt is dynamically assembled at runtime, combining the base prompt text with the shell context.
 
@@ -162,7 +162,7 @@ The prompt instructs the model to:
 ## 5. Data Flow Sequence
 
 ```
-User runs: aicmd find all pdf files larger than 10MB
+User runs: cmdify find all pdf files larger than 10MB
                      │
                      ▼
               ┌──────────────┐

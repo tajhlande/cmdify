@@ -1,8 +1,8 @@
-# aicmd — Phased Implementation Plan
+# cmdify — Phased Implementation Plan
 
 ## Overview
 
-This plan breaks the full `aicmd` design into incremental, testable phases. Each phase produces a working binary and a passing test suite. Phases are ordered so that each builds on the last and no phase requires a rewrite of prior work.
+This plan breaks the full `cmdify` design into incremental, testable phases. Each phase produces a working binary and a passing test suite. Phases are ordered so that each builds on the last and no phase requires a rewrite of prior work.
 
 ---
 

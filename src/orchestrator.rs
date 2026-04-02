@@ -19,6 +19,8 @@ pub async fn run(prompt: &str, config: &Config) -> Result<String, Error> {
 
     match response.content {
         Some(content) => Ok(content.trim().to_string()),
-        None => Err(Error::ProviderError("empty response from provider".into())),
+        None => Err(Error::ProviderError(
+            "empty response from provider (try increasing CMDIFY_MAX_TOKENS)".into(),
+        )),
     }
 }

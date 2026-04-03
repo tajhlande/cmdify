@@ -20,7 +20,7 @@ async fn main() {
 
     let user_prompt = cli.user_prompt();
 
-    let config = match config::Config::from_env() {
+    let config = match config::Config::from_env(cli.config.as_deref()) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("{}", e);
@@ -28,14 +28,9 @@ async fn main() {
         }
     };
 
-    let spinner = cli
-        .spinner
-        .or_else(|| {
-            std::env::var("CMDIFY_SPINNER")
-                .ok()
-                .and_then(|v| v.parse().ok())
-        })
-        .unwrap_or(1);
+    let spinner = cli.spinner.unwrap_or(config.spinner);
+
+    let yolo = cli.yolo || config.yolo;
 
     let spinner_handle = spinner::Spinner::start(spinner);
 
@@ -46,7 +41,7 @@ async fn main() {
     match result {
         Ok(content) => {
             println!("{}", content);
-            if cli.yolo {
+            if yolo {
                 let shell = std::env::var("SHELL").unwrap_or_else(|_| "sh".into());
                 let status = std::process::Command::new(shell)
                     .arg("-c")

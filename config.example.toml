@@ -1,0 +1,121 @@
+# =============================================================================
+# cmdify configuration file
+# =============================================================================
+# Place this file at:
+#   $XDG_CONFIG_HOME/cmdify/config.toml      (Linux)
+#   $HOME/.config/cmdify/config.toml          (macOS, when XDG_CONFIG_HOME is not set)
+#
+# Values here can be overridden by environment variables of the same name.
+# API keys are NEVER stored here — use environment variables only.
+
+# =============================================================================
+# REQUIRED — one of these must be set (here or via env var)
+# =============================================================================
+
+# LLM provider name. Env var: CMDIFY_PROVIDER_NAME
+# Values: completions, responses, openai, anthropic, gemini, openrouter,
+#         huggingface, mistral, qwen, kimi, minimax, zai, ollama
+provider_name = "openai"
+
+# Model name to use. Env var: CMDIFY_MODEL_NAME
+model_name = "gpt-5.4-mini"
+
+# =============================================================================
+# OPTIONAL — behavior settings
+# =============================================================================
+
+# Maximum tokens for the LLM response. Default: 16384. Env var: CMDIFY_MAX_TOKENS
+# max_tokens = 16384
+
+# Path to a custom system prompt file (replaces the compiled-in prompt entirely).
+# Env var: CMDIFY_SYSTEM_PROMPT_FILE
+# system_prompt_file = "/path/to/custom_prompt.txt"
+
+# =============================================================================
+# OPTIONAL — flags (env var overrides config, CLI flag overrides both)
+# =============================================================================
+
+# Spinner style: 1 (default, classic), 2 (braille), 3 (dots).
+# Env var: CMDIFY_SPINNER | CLI: -s / --spinner
+# spinner = 1
+
+# Allow potentially unsafe commands (bypasses safety check).
+# Default: false. Env var: CMDIFY_UNSAFE | CLI: -u / --unsafe
+# allow_unsafe = false
+
+# Disable the ask_user tool (model cannot ask for clarification).
+# Default: false. Env var: CMDIFY_QUIET | CLI: -q / --quiet
+# quiet = false
+
+# Disable the find_command tool (model cannot discover available commands).
+# Default: false. Env var: CMDIFY_BLIND | CLI: -b / --blind
+# blind = false
+
+# Disable all tools (supersedes quiet and blind).
+# Default: false. Env var: CMDIFY_NO_TOOLS | CLI: -n / --no-tools
+# no_tools = false
+
+# Execute the generated command after printing it.
+# Default: false. Env var: CMDIFY_YOLO | CLI: -y / --yolo
+# yolo = false
+
+# =============================================================================
+# OPTIONAL — provider base URLs (env var overrides config)
+# =============================================================================
+# For providers with defaults, the override is only needed if you use a custom
+# endpoint. For completions/responses, a URL is required (no default).
+# API keys are still env-var-only — never stored in the config file.
+
+[providers]
+
+# completions — no default, required when using the completions provider.
+# Env var: CMDIFY_COMPLETIONS_URL
+# completions_url = "http://localhost:8080/v1"
+
+# responses — no default, required when using the responses provider.
+# Env var: CMDIFY_RESPONSES_URL
+# responses_url = ""
+
+# openai — default: https://api.openai.com
+# Env var: OPENAI_BASE_URL
+# openai_base_url = "https://api.openai.com"
+
+# anthropic — default: https://api.anthropic.com
+# Env var: ANTHROPIC_BASE_URL
+# anthropic_base_url = "https://api.anthropic.com"
+
+# gemini — default: https://generativelanguage.googleapis.com
+# Env var: GEMINI_BASE_URL
+# gemini_base_url = "https://generativelanguage.googleapis.com"
+
+# mistral — default: https://api.mistral.ai
+# Env var: MISTRAL_BASE_URL
+# mistral_base_url = "https://api.mistral.ai"
+
+# qwen — default: https://dashscope.aliyuncs.com/compatible-mode
+# Env var: QWEN_BASE_URL
+# qwen_base_url = "https://dashscope.aliyuncs.com/compatible-mode"
+
+# kimi — default: https://api.moonshot.cn
+# Env var: KIMI_BASE_URL
+# kimi_base_url = "https://api.moonshot.cn"
+
+# openrouter — default: https://openrouter.ai/api
+# Env var: OPENROUTER_BASE_URL
+# openrouter_base_url = "https://openrouter.ai/api"
+
+# huggingface — default: https://api-inference.huggingface.co
+# Env var: HUGGINGFACE_BASE_URL
+# huggingface_base_url = "https://api-inference.huggingface.co"
+
+# zai — default: https://api.z.ai
+# Env var: ZAI_BASE_URL
+# zai_base_url = "https://api.z.ai"
+
+# minimax — default: https://api.minimax.chat
+# Env var: MINIMAX_BASE_URL
+# minimax_base_url = "https://api.minimax.chat"
+
+# ollama — default: http://localhost:11434
+# Env var: OLLAMA_BASE_URL
+# ollama_base_url = "http://localhost:11434"

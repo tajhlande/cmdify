@@ -8,18 +8,19 @@ This plan breaks the full `cmdify` design into incremental, testable phases. Eac
 
 ## Phase Summary
 
-| Phase | Title | Scope | Key Deliverables |
-|-------|-------|-------|-----------------|
-| 1 | Minimal MVP | `/completions` provider, no tools | Working binary, basic UX, env config |
-| 2 | `find_command` Tool | Add command discovery tool | Tool trait, registry, tool call loop |
-| 3 | `ask_user` Tool | Add interactive clarification tool | Interactive stdin/stderr UX |
-| 4 | OpenRouter & HuggingFace | Two more OpenAI-compat providers | Named provider pattern, shared completions impl |
-| 5 | Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats | Three new providers, AuthStyle::QueryParam |
-| 6 | Responses & Remaining | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
-| 7 | Cross-Compilation | Build targets for all platforms | Makefile dist, Raspbian arm, Apple Intel/Silicon |
-| 8 | CI/CD & Distribution | GitHub Actions, releases, polish | Automated testing, release workflow, docs |
-| 9 | Safety Check | Unsafe command detection, `--unsafe` flag | Safety module, pattern matching, CLI flag |
-| 10 | Interactive Setup | `--setup` flag, first-run detection, config wizard | Setup module, interactive prompts, config file creation |
+| Phase | Status | Title | Scope | Key Deliverables |
+|-------|--------|-------|-------|-----------------|
+| 1 | ✅ | Minimal MVP | `/completions` provider, no tools | Working binary, basic UX, env config |
+| 2 | ⬜ | `find_command` Tool | Add command discovery tool | Tool trait, registry, tool call loop |
+| 3 | ⬜ | `ask_user` Tool | Add interactive clarification tool | Interactive stdin/stderr UX |
+| 4 | ⬜ | OpenRouter & HuggingFace | Two more OpenAI-compat providers | Named provider pattern, shared completions impl |
+| 5 | ⬜ | Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats | Three new providers, AuthStyle::QueryParam |
+| 6 | ⬜ | Responses & Remaining | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
+| 7 | ⬜ | Cross-Compilation | Build targets for all platforms | Makefile dist, Raspbian arm, Apple Intel/Silicon |
+| 8 | ⬜ | CI/CD & Distribution | GitHub Actions, releases, polish | Automated testing, release workflow, docs |
+| 9 | 📝 | Safety Check | Unsafe command detection, `--unsafe` flag | Safety module, pattern matching, CLI flag |
+| 10 | 📝 | Interactive Setup | `--setup` flag, first-run detection, config wizard | Setup module, interactive prompts, config file creation |
+| 11 | 📝 | Debug Mode | Debug logging, `--debug` flag | Debug logging module, stderr trace output, configurable verbosity |
 
 ---
 
@@ -42,6 +43,8 @@ Phase 10 (requires Phase 1, benefits from Phase 6 for full provider list)
 ```
 
 Phase 7 (cross-compilation) can begin any time after Phase 1 produces a working binary, since the `Makefile dist` target is independent of provider/tool complexity. However, it benefits from Phase 5+ since those phases finalize the dependency list.
+
+Phase 11 (debug mode) is independent and can start after Phase 1. It enhances observability across all other phases once in place.
 
 ---
 
@@ -67,5 +70,6 @@ Phase 7 (cross-compilation) can begin any time after Phase 1 produces a working 
 - [Phase 8 — CI/CD & Distribution](./phase-8-ci-distribution.md)
 - [Phase 9 — Safety Check](./phase-9-safety-check.md)
 - [Phase 10 — Interactive Setup](./phase-10-interactive-setup.md)
+- [Phase 11 — Debug Mode](./phase-11-debug-mode.md)
 - [Test Strategy](./test-strategy.md)
 - [Live Testing](./live-testing.md)

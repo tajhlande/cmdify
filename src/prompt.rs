@@ -38,6 +38,12 @@ mod tests {
             model_name: "test".into(),
             max_tokens: 4096,
             system_prompt_override: override_path.map(|p| p.to_string()),
+            spinner: 1,
+            allow_unsafe: false,
+            quiet: false,
+            blind: false,
+            no_tools: false,
+            yolo: false,
             provider_settings: crate::config::ProviderSettings {
                 api_key: None,
                 base_url: "http://localhost".into(),

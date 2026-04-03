@@ -12,6 +12,12 @@ fn make_config(base_url: &str, api_key: Option<&str>, model: &str) -> Config {
         model_name: model.into(),
         max_tokens: 4096,
         system_prompt_override: None,
+        spinner: 1,
+        allow_unsafe: false,
+        quiet: false,
+        blind: false,
+        no_tools: false,
+        yolo: false,
         provider_settings: ProviderSettings {
             api_key: api_key.map(|k| k.into()),
             base_url: base_url.into(),

@@ -27,9 +27,17 @@ pub struct Cli {
         short = 's',
         long = "spinner",
         value_name = "N",
-        help = "Spinner style: 1 (default), 2 (braille), or 3 (dots)"
+        help = "Spinner style: 1 (default bar), 2 (braille), or 3 (dots)"
     )]
     pub spinner: Option<u8>,
+
+    #[arg(
+        short = 'c',
+        long = "config",
+        value_name = "FILE",
+        help = "Path to config file (must exist)"
+    )]
+    pub config: Option<std::path::PathBuf>,
 
     #[arg(
         trailing_var_arg = true,
@@ -131,5 +139,30 @@ mod tests {
         assert!(help.contains("no-tools"));
         assert!(help.contains("yolo"));
         assert!(help.contains("spinner"));
+        assert!(help.contains("config"));
+    }
+
+    #[test]
+    fn parse_config_short() {
+        let cli = Cli::try_parse_from(["cmdify", "-c", "/my/config.toml", "test"]).unwrap();
+        assert_eq!(
+            cli.config.as_deref(),
+            Some(std::path::Path::new("/my/config.toml"))
+        );
+    }
+
+    #[test]
+    fn parse_config_long() {
+        let cli = Cli::try_parse_from(["cmdify", "--config", "/my/config.toml", "test"]).unwrap();
+        assert_eq!(
+            cli.config.as_deref(),
+            Some(std::path::Path::new("/my/config.toml"))
+        );
+    }
+
+    #[test]
+    fn config_default_none() {
+        let cli = Cli::try_parse_from(["cmdify", "test"]).unwrap();
+        assert!(cli.config.is_none());
     }
 }

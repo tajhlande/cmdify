@@ -17,7 +17,8 @@ fn cleanup_vars() {
     env::remove_var("CMDIFY_COMPLETIONS_KEY");
     env::remove_var("CMDIFY_MAX_TOKENS");
     env::remove_var("CMDIFY_SYSTEM_PROMPT_FILE");
-    env::remove_var("XDG_CONFIG_HOME");
+    env::set_var("XDG_CONFIG_HOME", "/nonexistent-cmdify-test-config");
+    env::set_var("HOME", "/nonexistent-cmdify-test-home");
 }
 
 fn setup_completions_env() {

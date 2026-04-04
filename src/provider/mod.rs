@@ -6,7 +6,6 @@ use crate::config::Config;
 use crate::error::{Error, Result};
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum Message {
     System {
         content: String,
@@ -20,27 +19,28 @@ pub enum Message {
     },
     ToolResult {
         tool_call_id: String,
+        #[allow(dead_code)]
         name: String,
         content: String,
     },
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct ProviderResponse {
     pub content: Option<String>,
     pub tool_calls: Vec<ToolCall>,
+    #[allow(dead_code)]
     pub finish_reason: FinishReason,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ToolCall {
     pub id: String,
     pub name: String,
     pub arguments: serde_json::Value,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ToolDefinition {
     pub name: String,
     pub description: String,
@@ -56,7 +56,6 @@ pub enum FinishReason {
 }
 
 #[async_trait]
-#[allow(dead_code)]
 pub trait Provider: Send + Sync {
     async fn send_request(
         &self,
@@ -64,7 +63,9 @@ pub trait Provider: Send + Sync {
         tools: &[ToolDefinition],
     ) -> Result<ProviderResponse>;
 
+    #[allow(dead_code)]
     fn supports_tools(&self) -> bool;
+    #[allow(dead_code)]
     fn name(&self) -> &str;
 }
 

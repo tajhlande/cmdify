@@ -7,6 +7,8 @@ pub enum Error {
     ConfigError(String),
     #[error("provider error: {0}")]
     ProviderError(String),
+    #[error("tool error: {0}")]
+    ToolError(String),
     #[error("response error: unexpected format: {0}")]
     ResponseError(String),
     #[error("http error: {0}")]

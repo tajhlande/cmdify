@@ -50,7 +50,7 @@ impl CompletionsProvider {
                                     "type": "function",
                                     "function": {
                                         "name": tc.name,
-                                        "arguments": tc.arguments,
+                                        "arguments": tc.arguments.to_string(),
                                     }
                                 })
                             })
@@ -97,7 +97,16 @@ impl CompletionsProvider {
                         let id = tc.get("id")?.as_str()?.to_string();
                         let func = tc.get("function")?;
                         let name = func.get("name")?.as_str()?.to_string();
-                        let arguments = func.get("arguments").cloned().unwrap_or(json!({}));
+                        let arguments = func
+                            .get("arguments")
+                            .and_then(|a| {
+                                if a.is_string() {
+                                    serde_json::from_str(a.as_str()?).ok()
+                                } else {
+                                    Some(a.clone())
+                                }
+                            })
+                            .unwrap_or(json!({}));
                         Some(ToolCall {
                             id,
                             name,
@@ -323,5 +332,78 @@ mod tests {
         let body = json!({ "choices": [] });
         let result = provider.parse_response(&body);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn format_assistant_message_with_content_and_tool_calls() {
+        let provider =
+            CompletionsProvider::new(&make_config("http://localhost:11434", None, "llama3", 4096))
+                .unwrap();
+        let messages = [Message::Assistant {
+            content: Some("Let me check that.".into()),
+            tool_calls: vec![ToolCall {
+                id: "call_1".into(),
+                name: "find_command".into(),
+                arguments: json!({"command": "fd"}),
+            }],
+        }];
+        let formatted = provider.format_messages(&messages);
+        assert_eq!(formatted[0]["role"], "assistant");
+        assert_eq!(formatted[0]["content"], "Let me check that.");
+        assert_eq!(formatted[0]["tool_calls"][0]["id"], "call_1");
+        assert_eq!(
+            formatted[0]["tool_calls"][0]["function"]["name"],
+            "find_command"
+        );
+    }
+
+    #[test]
+    fn format_tool_result_message() {
+        let provider =
+            CompletionsProvider::new(&make_config("http://localhost:11434", None, "llama3", 4096))
+                .unwrap();
+        let messages = [Message::ToolResult {
+            tool_call_id: "call_1".into(),
+            name: "find_command".into(),
+            content: "/bin/ls".into(),
+        }];
+        let formatted = provider.format_messages(&messages);
+        assert_eq!(formatted.len(), 1);
+        assert_eq!(formatted[0]["role"], "tool");
+        assert_eq!(formatted[0]["tool_call_id"], "call_1");
+        assert_eq!(formatted[0]["content"], "/bin/ls");
+    }
+
+    #[test]
+    fn parse_length_finish_reason() {
+        let provider =
+            CompletionsProvider::new(&make_config("http://localhost:11434", None, "llama3", 4096))
+                .unwrap();
+        let body = json!({
+            "choices": [{
+                "message": { "role": "assistant", "content": "incomplete" },
+                "finish_reason": "length"
+            }]
+        });
+        let response = provider.parse_response(&body).unwrap();
+        assert_eq!(response.finish_reason, FinishReason::Length);
+    }
+
+    #[test]
+    fn parse_unknown_finish_reason() {
+        let provider =
+            CompletionsProvider::new(&make_config("http://localhost:11434", None, "llama3", 4096))
+                .unwrap();
+        let body = json!({
+            "choices": [{
+                "message": { "role": "assistant", "content": "test" },
+                "finish_reason": "content_filter"
+            }]
+        });
+        let response = provider.parse_response(&body).unwrap();
+        assert_eq!(
+            response.finish_reason,
+            FinishReason::Other("content_filter".into())
+        );
     }
 }

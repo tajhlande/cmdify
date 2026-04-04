@@ -441,7 +441,8 @@ mod tests {
         env::remove_var("CMDIFY_NO_TOOLS");
         env::remove_var("CMDIFY_YOLO");
         env::remove_var("CMDIFY_CONFIG");
-        env::remove_var("XDG_CONFIG_HOME");
+        env::set_var("XDG_CONFIG_HOME", "/nonexistent-cmdify-test-config");
+        env::set_var("HOME", "/nonexistent-cmdify-test-home");
     }
 
     fn setup_completions_env() {

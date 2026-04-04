@@ -4,6 +4,8 @@
 
 This plan breaks the full `cmdify` design into incremental, testable phases. Each phase produces a working binary and a passing test suite. Phases are ordered so that each builds on the last and no phase requires a rewrite of prior work.
 
+**Versioning:** Bump the minor version (`0.x.0` → `0.(x+1).0`) when beginning implementation of a new phase. When all phases are complete, bump to `1.0.0`.
+
 ---
 
 ## Phase Summary
@@ -11,7 +13,7 @@ This plan breaks the full `cmdify` design into incremental, testable phases. Eac
 | Phase | Status | Title | Scope | Key Deliverables |
 |-------|--------|-------|-------|-----------------|
 | 1 | ✅ | Minimal MVP | `/completions` provider, no tools | Working binary, basic UX, env config |
-| 2 | ⬜ | `find_command` Tool | Add command discovery tool | Tool trait, registry, tool call loop |
+| 2 | ✅ | `find_command` Tool | Add command discovery tool | Tool trait, registry, tool call loop |
 | 3 | ⬜ | `ask_user` Tool | Add interactive clarification tool | Interactive stdin/stderr UX |
 | 4 | ⬜ | OpenRouter & HuggingFace | Two more OpenAI-compat providers | Named provider pattern, shared completions impl |
 | 5 | ⬜ | Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats | Three new providers, AuthStyle::QueryParam |
@@ -45,6 +47,33 @@ Phase 10 (requires Phase 1, benefits from Phase 6 for full provider list)
 Phase 7 (cross-compilation) can begin any time after Phase 1 produces a working binary, since the `Makefile dist` target is independent of provider/tool complexity. However, it benefits from Phase 5+ since those phases finalize the dependency list.
 
 Phase 11 (debug mode) is independent and can start after Phase 1. It enhances observability across all other phases once in place.
+
+---
+
+## Cross-Phase Notes
+
+### Command Execution Logging (added during Phase 2)
+
+Every subprocess spawned by cmdify is logged to a file for auditing. This covers:
+- `find_command` tool lookups (`command -v` and `which` fallback)
+- `--yolo` command executions
+
+**Log file location** (XDG Base Directory compliant):
+- `$XDG_STATE_HOME/cmdify/history.log` if `XDG_STATE_HOME` is set
+- `$HOME/.local/state/cmdify/history.log` otherwise
+
+**Log format:**
+```
+[2026-04-03T16:30:00Z] [output] [completions/llama3] ls -la
+[2026-04-03T16:30:00Z] [find_command] [completions/llama3] command -v ls
+```
+
+**Implementation details:**
+- `src/logger.rs` — `CmdifyLogger` struct, best-effort file open (silently degrades if unavailable)
+- `Tool` trait's `execute()` accepts `Option<&CmdifyLogger>` to pass logging context through
+- Logger is created in `main.rs` with model/provider info, passed to orchestrator and tool registry
+- No env var or CLI flag to configure — logging is always-on for subprocess execution
+- Uses `chrono` for ISO 8601 UTC timestamps
 
 ---
 

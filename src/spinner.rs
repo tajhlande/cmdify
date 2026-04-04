@@ -6,7 +6,7 @@ use std::time::Duration;
 
 const FRAMES: &[char] = &['|', '\\', '/', '-'];
 
-const FRAMES_BRAILLE: &[char] = &['⣾', '⣷', '⣯', '⣟', '⣻', '⣽', '⣾', '⣷'];
+const FRAMES_BRAILLE: &[char] = &['⣾', '⣷', '⣯', '⣟', '⡿', '⢿', '⣻', '⣽'];
 
 const FRAMES_DOTS: &[char] = &['⋅', '.', '˳', '˳', '.', '⋅', 'ॱ', '˙', '˙', 'ॱ'];
 

@@ -166,7 +166,7 @@ The prompt instructs the model to:
 
 ### 4.7 Safety Check (`safety.rs`)
 
-Inspects generated commands for potentially dangerous patterns before outputting or executing them. See [Phase 9 — Safety Check](../implementation/phase-9-safety-check.md) for full design.
+Inspects generated commands for potentially dangerous patterns before outputting or executing them. See [Phase 5 — Safety Check](../implementation/phase-5-safety-check.md) for full design.
 
 **Behavior:**
 - By default, if the generated command matches an unsafe pattern, cmdify prints an error to stderr and exits with code 1. The error includes the matched pattern and instructions to rerun with `--unsafe` (`-u`).
@@ -179,7 +179,7 @@ Inspects generated commands for potentially dangerous patterns before outputting
 
 ### 4.8 Setup Wizard (`setup.rs`)
 
-Interactive config wizard that creates or updates `~/.config/cmdify/config.toml`. See [Phase 10 — Interactive Setup](../implementation/phase-10-interactive-setup.md) for full design.
+Interactive config wizard that creates or updates `~/.config/cmdify/config.toml`. See [Phase 11 — Interactive Setup](../implementation/phase-11-interactive-setup.md) for full design.
 
 **Behavior:**
 - `--setup` flag enters setup mode on an interactive terminal. On a non-interactive terminal, exits with an error.

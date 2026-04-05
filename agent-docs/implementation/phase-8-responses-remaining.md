@@ -1,4 +1,4 @@
-# Phase 7 — Responses Provider & Remaining Providers
+# Phase 8 — Responses Provider & Remaining Providers
 
 ## Goal
 
@@ -34,7 +34,7 @@ tests/
 
 ## Implementation Steps
 
-### 7.1 Responses provider (`src/provider/responses.rs`)
+### 8.1 Responses provider (`src/provider/responses.rs`)
 
 Full custom implementation per `PROVIDERS.md §3.4`:
 
@@ -57,9 +57,9 @@ Full custom implementation per `PROVIDERS.md §3.4`:
 - `CMDIFY_RESPONSES_URL` (required, no default)
 - `CMDIFY_RESPONSES_KEY` (optional)
 
-### 7.2 Remaining completions-category providers
+### 8.2 Remaining completions-category providers
 
-Each is a thin struct following the Phase 5 pattern:
+Each is a thin struct following the Phase 6 pattern:
 
 | Provider | Module | Default Base URL | Key Env Var |
 |----------|--------|-----------------|-------------|
@@ -72,13 +72,13 @@ Each is a thin struct following the Phase 5 pattern:
 
 All delegate to `send_completions_request()` with their respective defaults. All require their API key (except Ollama, which requires no auth). All allow base URL override via `_<PROVIDER>_BASE_URL`.
 
-### 7.3 Config and factory updates
+### 8.3 Config and factory updates
 
 - `config.rs`: add match arms for all six new providers
 - `provider/mod.rs`: complete the factory with all 12 providers
 - Update `ProviderSettings::from_env()` to handle all cases
 
-### 7.4 Factory completeness
+### 8.4 Factory completeness
 
 Final factory:
 

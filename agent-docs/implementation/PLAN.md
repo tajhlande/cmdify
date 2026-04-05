@@ -16,12 +16,12 @@ This plan breaks the full `cmdify` design into incremental, testable phases. Eac
 | 2 | ✅ | `find_command` Tool | Add command discovery tool | Tool trait, registry, tool call loop |
 | 3 | ✅ | `ask_user` Tool | Add interactive clarification tool | Interactive stdin/stderr UX |
 | 4 | ⬜ | Tool Levels | Numbered tool level system, `--list-tools` | Progressive tool disclosure, config |
-| 5 | ⬜ | OpenRouter & HuggingFace | Two more OpenAI-compat providers | Named provider pattern, shared completions impl |
-| 6 | ⬜ | Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats | Three new providers, AuthStyle::QueryParam |
-| 7 | ⬜ | Responses & Remaining | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
-| 8 | ⬜ | Cross-Compilation | Build targets for all platforms | Makefile dist, Raspbian arm, Apple Intel/Silicon |
-| 9 | ⬜ | CI/CD & Distribution | GitHub Actions, releases, polish | Automated testing, release workflow, docs |
-| 10 | 📝 | Safety Check | Unsafe command detection, `--unsafe` flag | Safety module, pattern matching, CLI flag |
+| 5 | 📝 | Safety Check | Modular prompt, LLM guidance, semantic checks | Three-layer safety, system prompt split, shlex tokenization |
+| 6 | ⬜ | OpenRouter & HuggingFace | Two more OpenAI-compat providers | Named provider pattern, shared completions impl |
+| 7 | ⬜ | Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats | Three new providers, AuthStyle::QueryParam |
+| 8 | ⬜ | Responses & Remaining | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
+| 9 | ⬜ | Cross-Compilation | Build targets for all platforms | Makefile dist, Raspbian arm, Apple Intel/Silicon |
+| 10 | ⬜ | CI/CD & Distribution | GitHub Actions, releases, polish | Automated testing, release workflow, docs |
 | 11 | 📝 | Interactive Setup | `--setup` flag, first-run detection, config wizard | Setup module, interactive prompts, config file creation |
 | 12 | ✅ | Debug Mode | Debug logging, `--debug` flag | Debug logging module, stderr trace output, configurable verbosity |
 
@@ -30,16 +30,13 @@ This plan breaks the full `cmdify` design into incremental, testable phases. Eac
 ## Phase Dependencies
 
 ```
-Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 ──→ Phase 5 ──→ Phase 6 ──→ Phase 7
-                                                                 │
-                                                                 ▼
-Phase 8 (can start after Phase 1, but benefits from Phase 6)
+Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 ──→ Phase 5 ──→ Phase 6 ──→ Phase 7 ──→ Phase 8
                                                                   │
                                                                   ▼
-Phase 9 (can start after Phase 1, independent of other phases)
+Phase 9 (can start after Phase 1, but benefits from Phase 7)
                                                                   │
                                                                   ▼
-Phase 10 (requires Phase 1, benefits from Phase 7 for full provider list)
+Phase 10 (can start after Phase 1, independent of other phases)
                                                                   │
                                                                   ▼
 Phase 11 (requires Phase 1, independent of other phases)
@@ -48,9 +45,11 @@ Phase 11 (requires Phase 1, independent of other phases)
 Phase 12 (can start after Phase 1, independent of other phases)
 ```
 
-Phase 4 (tool levels) follows Phase 3 since it restructures the tool system that Phases 2 and 3 built. Provider phases (5–7) can proceed without it since the tool level infrastructure is independent of provider logic.
+Phase 4 (tool levels) follows Phase 3 since it restructures the tool system that Phases 2 and 3 built. Provider phases (6–8) can proceed without it since the tool level infrastructure is independent of provider logic.
 
-Phase 8 (cross-compilation) can begin any time after Phase 1 produces a working binary, since the `Makefile dist` target is independent of provider/tool complexity. However, it benefits from Phase 6+ since those phases finalize the dependency list.
+Phase 5 (safety check) follows Phase 4 since the modular prompt system introduced there will include safety guidance. It is independent of provider work and provides a safety foundation before provider phases add more capabilities.
+
+Phase 9 (cross-compilation) can begin any time after Phase 1 produces a working binary, since the `Makefile dist` target is independent of provider/tool complexity. However, it benefits from Phase 7+ since those phases finalize the dependency list.
 
 Phase 12 (debug mode) is independent and can start after Phase 1. It enhances observability across all other phases once in place.
 
@@ -110,12 +109,12 @@ Tools are organized into numbered levels (0–3) providing progressive environme
 - [Phase 2 — find_command Tool](./phase-2-find-command.md)
 - [Phase 3 — ask_user Tool](./phase-3-ask-user.md)
 - [Phase 4 — Tool Levels](./phase-4-tool-levels.md)
-- [Phase 5 — OpenRouter & HuggingFace](./phase-5-openrouter-huggingface.md)
-- [Phase 6 — Gemini, OpenAI, Anthropic](./phase-6-gemini-openai-anthropic.md)
-- [Phase 7 — Responses & Remaining Providers](./phase-7-responses-remaining.md)
-- [Phase 8 — Cross-Compilation](./phase-8-cross-compilation.md)
-- [Phase 9 — CI/CD & Distribution](./phase-9-ci-distribution.md)
-- [Phase 10 — Safety Check](./phase-10-safety-check.md)
+- [Phase 5 — Safety Check](./phase-5-safety-check.md)
+- [Phase 6 — OpenRouter & HuggingFace](./phase-6-openrouter-huggingface.md)
+- [Phase 7 — Gemini, OpenAI, Anthropic](./phase-7-gemini-openai-anthropic.md)
+- [Phase 8 — Responses & Remaining Providers](./phase-8-responses-remaining.md)
+- [Phase 9 — Cross-Compilation](./phase-9-cross-compilation.md)
+- [Phase 10 — CI/CD & Distribution](./phase-10-ci-distribution.md)
 - [Phase 11 — Interactive Setup](./phase-11-interactive-setup.md)
 - [Phase 12 — Debug Mode](./phase-12-debug-mode.md)
 - [Test Strategy](./test-strategy.md)

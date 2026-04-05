@@ -1,4 +1,4 @@
-# Phase 6 — Gemini, OpenAI, Anthropic Providers
+# Phase 7 — Gemini, OpenAI, Anthropic Providers
 
 ## Goal
 
@@ -28,7 +28,7 @@ tests/
 
 ## Implementation Steps
 
-### 6.1 OpenAI provider (`src/provider/openai.rs`)
+### 7.1 OpenAI provider (`src/provider/openai.rs`)
 
 Thin wrapper around shared completions logic (same pattern as OpenRouter/HuggingFace):
 
@@ -40,7 +40,7 @@ Thin wrapper around shared completions logic (same pattern as OpenRouter/Hugging
 
 This is straightforward since OpenAI invented the completions format.
 
-### 6.2 Anthropic provider (`src/provider/anthropic.rs`)
+### 7.2 Anthropic provider (`src/provider/anthropic.rs`)
 
 Full custom implementation per `PROVIDERS.md §3.2`:
 
@@ -64,7 +64,7 @@ Full custom implementation per `PROVIDERS.md §3.2`:
 - `parse_response()`: parse content array, extract text and tool_use parts
 - `parse_finish_reason()`: map `"end_turn"` and `"tool_use"`
 
-### 6.3 Gemini provider (`src/provider/gemini.rs`)
+### 7.3 Gemini provider (`src/provider/gemini.rs`)
 
 Full custom implementation per `PROVIDERS.md §3.3`:
 
@@ -89,7 +89,7 @@ Full custom implementation per `PROVIDERS.md §3.3`:
 - `parse_response()`: parse candidates, inspect parts for text/function_call
 - `build_url()`: construct URL with model name and query-param auth
 
-### 6.4 Config updates
+### 7.4 Config updates
 
 Add `AuthStyle::QueryParam` handling for Gemini in `ProviderSettings::from_env()`:
 
@@ -98,7 +98,7 @@ Add `AuthStyle::QueryParam` handling for Gemini in `ProviderSettings::from_env()
     "https://generativelanguage.googleapis.com", "key"),
 ```
 
-### 6.5 Factory updates
+### 7.5 Factory updates
 
 ```rust
 "openai" => Ok(Box::new(OpenAiProvider::new(config)?)),

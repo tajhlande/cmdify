@@ -5,6 +5,7 @@ use crate::debug;
 use crate::error::{Error, Result};
 use crate::logger::CmdifyLogger;
 use crate::provider::ToolDefinition;
+use crate::spinner::SpinnerPause;
 
 use super::{Tool, ToolOutput};
 
@@ -66,6 +67,7 @@ impl Tool for FindCommandTool {
         &self,
         arguments: serde_json::Value,
         logger: Option<&CmdifyLogger>,
+        _spinner: Option<&SpinnerPause>,
     ) -> Result<ToolOutput> {
         let command = arguments
             .get("command")
@@ -171,7 +173,7 @@ mod tests {
 
     #[tokio::test]
     async fn missing_command_argument() {
-        let result = tool().execute(json!({}), None).await;
+        let result = tool().execute(json!({}), None, None).await;
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -181,7 +183,7 @@ mod tests {
 
     #[tokio::test]
     async fn find_existing_command_sh() {
-        let result = tool().execute(json!({"command": "sh"}), None).await;
+        let result = tool().execute(json!({"command": "sh"}), None, None).await;
         assert!(result.is_ok());
         let output = result.unwrap().content;
         assert!(output.contains("sh"));
@@ -190,7 +192,7 @@ mod tests {
 
     #[tokio::test]
     async fn find_existing_command_ls() {
-        let result = tool().execute(json!({"command": "ls"}), None).await;
+        let result = tool().execute(json!({"command": "ls"}), None, None).await;
         assert!(result.is_ok());
         let output = result.unwrap().content;
         assert_ne!(output, "not found");
@@ -199,7 +201,7 @@ mod tests {
     #[tokio::test]
     async fn find_nonexistent_command() {
         let result = tool()
-            .execute(json!({"command": "nonexistent_cmd_xyz_12345"}), None)
+            .execute(json!({"command": "nonexistent_cmd_xyz_12345"}), None, None)
             .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap().content, "not found");
@@ -208,7 +210,7 @@ mod tests {
     #[tokio::test]
     async fn shell_injection_safety() {
         let result = tool()
-            .execute(json!({"command": "ls; rm -rf /"}), None)
+            .execute(json!({"command": "ls; rm -rf /"}), None, None)
             .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap().content, "not found");
@@ -216,13 +218,15 @@ mod tests {
 
     #[tokio::test]
     async fn command_not_string_errors() {
-        let result = tool().execute(json!({"command": 42}), None).await;
+        let result = tool().execute(json!({"command": 42}), None, None).await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn command_with_path() {
-        let result = tool().execute(json!({"command": "/bin/sh"}), None).await;
+        let result = tool()
+            .execute(json!({"command": "/bin/sh"}), None, None)
+            .await;
         assert!(result.is_ok());
         let output = result.unwrap().content;
         assert_eq!(output, "/bin/sh");
@@ -231,7 +235,9 @@ mod tests {
     #[tokio::test]
     async fn timeout_returns_error_message() {
         let slow_tool = FindCommandTool::with_timeout(0);
-        let result = slow_tool.execute(json!({"command": "sh"}), None).await;
+        let result = slow_tool
+            .execute(json!({"command": "sh"}), None, None)
+            .await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap().content, "error: command lookup timed out");
     }

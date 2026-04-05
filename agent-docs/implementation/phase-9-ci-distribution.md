@@ -1,4 +1,4 @@
-# Phase 8 — CI/CD & Distribution
+# Phase 9 — CI/CD & Distribution
 
 ## Goal
 
@@ -30,7 +30,7 @@ AGENTS.md                   # MODIFY: fill in Build process and Deployments stub
 
 ## Implementation Steps
 
-### 8.1 CI workflow (`.github/workflows/ci.yml`)
+### 9.1 CI workflow (`.github/workflows/ci.yml`)
 
 Per `BUILD.md §5.3`:
 
@@ -65,7 +65,7 @@ jobs:
       - run: cargo test
 ```
 
-### 8.2 Release workflow (`.github/workflows/release.yml`)
+### 9.2 Release workflow (`.github/workflows/release.yml`)
 
 Triggered on git tags matching `v*`:
 
@@ -122,7 +122,7 @@ jobs:
           files: cmdify-*/cmdify
 ```
 
-### 8.3 README.md
+### 9.3 README.md
 
 - Project description
 - Installation (cargo install, or download binary from releases)
@@ -132,7 +132,7 @@ jobs:
 - Environment variables reference (link to `BUILD.md`)
 - How tools work (brief explanation)
 
-### 8.4 AGENTS.md cleanup
+### 9.4 AGENTS.md cleanup
 
 Fill in the two empty stub sections:
 

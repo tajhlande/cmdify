@@ -14,39 +14,45 @@ This plan breaks the full `cmdify` design into incremental, testable phases. Eac
 |-------|--------|-------|-------|-----------------|
 | 1 | ✅ | Minimal MVP | `/completions` provider, no tools | Working binary, basic UX, env config |
 | 2 | ✅ | `find_command` Tool | Add command discovery tool | Tool trait, registry, tool call loop |
-| 3 | ⬜ | `ask_user` Tool | Add interactive clarification tool | Interactive stdin/stderr UX |
-| 4 | ⬜ | OpenRouter & HuggingFace | Two more OpenAI-compat providers | Named provider pattern, shared completions impl |
-| 5 | ⬜ | Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats | Three new providers, AuthStyle::QueryParam |
-| 6 | ⬜ | Responses & Remaining | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
-| 7 | ⬜ | Cross-Compilation | Build targets for all platforms | Makefile dist, Raspbian arm, Apple Intel/Silicon |
-| 8 | ⬜ | CI/CD & Distribution | GitHub Actions, releases, polish | Automated testing, release workflow, docs |
-| 9 | 📝 | Safety Check | Unsafe command detection, `--unsafe` flag | Safety module, pattern matching, CLI flag |
-| 10 | 📝 | Interactive Setup | `--setup` flag, first-run detection, config wizard | Setup module, interactive prompts, config file creation |
-| 11 | ✅ | Debug Mode | Debug logging, `--debug` flag | Debug logging module, stderr trace output, configurable verbosity |
+| 3 | ✅ | `ask_user` Tool | Add interactive clarification tool | Interactive stdin/stderr UX |
+| 4 | ⬜ | Tool Levels | Numbered tool level system, `--list-tools` | Progressive tool disclosure, config |
+| 5 | ⬜ | OpenRouter & HuggingFace | Two more OpenAI-compat providers | Named provider pattern, shared completions impl |
+| 6 | ⬜ | Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats | Three new providers, AuthStyle::QueryParam |
+| 7 | ⬜ | Responses & Remaining | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
+| 8 | ⬜ | Cross-Compilation | Build targets for all platforms | Makefile dist, Raspbian arm, Apple Intel/Silicon |
+| 9 | ⬜ | CI/CD & Distribution | GitHub Actions, releases, polish | Automated testing, release workflow, docs |
+| 10 | 📝 | Safety Check | Unsafe command detection, `--unsafe` flag | Safety module, pattern matching, CLI flag |
+| 11 | 📝 | Interactive Setup | `--setup` flag, first-run detection, config wizard | Setup module, interactive prompts, config file creation |
+| 12 | ✅ | Debug Mode | Debug logging, `--debug` flag | Debug logging module, stderr trace output, configurable verbosity |
 
 ---
 
 ## Phase Dependencies
 
 ```
-Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 ──→ Phase 5 ──→ Phase 6
-                                                                │
-                                                                ▼
-Phase 7 (can start after Phase 1, but benefits from Phase 5)
+Phase 1 ──→ Phase 2 ──→ Phase 3 ──→ Phase 4 ──→ Phase 5 ──→ Phase 6 ──→ Phase 7
                                                                  │
                                                                  ▼
-Phase 8 (requires Phase 7 complete)
-                                                                 │
-                                                                 ▼
+Phase 8 (can start after Phase 1, but benefits from Phase 6)
+                                                                  │
+                                                                  ▼
 Phase 9 (can start after Phase 1, independent of other phases)
-                                                                 │
-                                                                 ▼
-Phase 10 (requires Phase 1, benefits from Phase 6 for full provider list)
+                                                                  │
+                                                                  ▼
+Phase 10 (requires Phase 1, benefits from Phase 7 for full provider list)
+                                                                  │
+                                                                  ▼
+Phase 11 (requires Phase 1, independent of other phases)
+                                                                  │
+                                                                  ▼
+Phase 12 (can start after Phase 1, independent of other phases)
 ```
 
-Phase 7 (cross-compilation) can begin any time after Phase 1 produces a working binary, since the `Makefile dist` target is independent of provider/tool complexity. However, it benefits from Phase 5+ since those phases finalize the dependency list.
+Phase 4 (tool levels) follows Phase 3 since it restructures the tool system that Phases 2 and 3 built. Provider phases (5–7) can proceed without it since the tool level infrastructure is independent of provider logic.
 
-Phase 11 (debug mode) is independent and can start after Phase 1. It enhances observability across all other phases once in place.
+Phase 8 (cross-compilation) can begin any time after Phase 1 produces a working binary, since the `Makefile dist` target is independent of provider/tool complexity. However, it benefits from Phase 6+ since those phases finalize the dependency list.
+
+Phase 12 (debug mode) is independent and can start after Phase 1. It enhances observability across all other phases once in place.
 
 ---
 
@@ -75,13 +81,24 @@ Every subprocess spawned by cmdify is logged to a file for auditing. This covers
 - No env var or CLI flag to configure — logging is always-on for subprocess execution
 - Uses `chrono` for ISO 8601 UTC timestamps
 
+### Tool Levels (added during Phase 4)
+
+Tools are organized into numbered levels (0–3) providing progressive environment awareness. See [Phase 4 — Tool Levels](./phase-4-tool-levels.md) for full details.
+
+| Level | Name | Tools | Risk Profile |
+|-------|------|-------|-------------|
+| 0 | none | *(none)* | No tool access |
+| 1 | core | `ask_user`, `find_command`, `list_current_directory` | Interactive clarification, command checks, cwd listing |
+| 2 | local | `command_help`, `list_any_directory`, `pwd` | Read-only filesystem access |
+| 3 | system | `get_env`, `list_processes` | System introspection |
+
 ---
 
 ## Design Documents
 
 - [DESIGN.md](../design/DESIGN.md) — Architecture & module structure
 - [PROVIDERS.md](../design/PROVIDERS.md) — Provider trait, wire formats, factory
-- [TOOLS.md](../design/TOOLS.md) — Tool trait, registry, definitions, loop
+- [TOOLS.md](../design/TOOLS.md) — Tool trait, registry, definitions, levels, loop
 - [BUILD.md](../design/BUILD.md) — Configuration, dependencies, testing
 - [CRITIQUES.md](../design/CRITIQUES.md) — Resolved design issues
 
@@ -92,13 +109,14 @@ Every subprocess spawned by cmdify is logged to a file for auditing. This covers
 - [Phase 1 — Minimal MVP](./phase-1-mvp.md)
 - [Phase 2 — find_command Tool](./phase-2-find-command.md)
 - [Phase 3 — ask_user Tool](./phase-3-ask-user.md)
-- [Phase 4 — OpenRouter & HuggingFace](./phase-4-openrouter-huggingface.md)
-- [Phase 5 — Gemini, OpenAI, Anthropic](./phase-5-gemini-openai-anthropic.md)
-- [Phase 6 — Responses & Remaining Providers](./phase-6-responses-remaining.md)
-- [Phase 7 — Cross-Compilation](./phase-7-cross-compilation.md)
-- [Phase 8 — CI/CD & Distribution](./phase-8-ci-distribution.md)
-- [Phase 9 — Safety Check](./phase-9-safety-check.md)
-- [Phase 10 — Interactive Setup](./phase-10-interactive-setup.md)
-- [Phase 11 — Debug Mode](./phase-11-debug-mode.md)
+- [Phase 4 — Tool Levels](./phase-4-tool-levels.md)
+- [Phase 5 — OpenRouter & HuggingFace](./phase-5-openrouter-huggingface.md)
+- [Phase 6 — Gemini, OpenAI, Anthropic](./phase-6-gemini-openai-anthropic.md)
+- [Phase 7 — Responses & Remaining Providers](./phase-7-responses-remaining.md)
+- [Phase 8 — Cross-Compilation](./phase-8-cross-compilation.md)
+- [Phase 9 — CI/CD & Distribution](./phase-9-ci-distribution.md)
+- [Phase 10 — Safety Check](./phase-10-safety-check.md)
+- [Phase 11 — Interactive Setup](./phase-11-interactive-setup.md)
+- [Phase 12 — Debug Mode](./phase-12-debug-mode.md)
 - [Test Strategy](./test-strategy.md)
 - [Live Testing](./live-testing.md)

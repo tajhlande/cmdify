@@ -59,6 +59,7 @@
 - Use safe implementation strategies to prevent injection attacks, memory leaks, and crashes. 
 - Avoid memory allocation bloat where it is easily avoidable, but don't over-complicate the code to do so. 
 - Keep code readable and formatted for readability.
+- Avoid repeated boilerplate code. Create helpers as the need for or presence of boilerplate repetition is determined.
 
 ## Build process
 

@@ -18,7 +18,7 @@
 provider_name = "openai"
 
 # Model name to use. Env var: CMDIFY_MODEL_NAME
-model_name = "gpt-5.4-mini"
+model_name = "gpt-4o"
 
 # =============================================================================
 # OPTIONAL — behavior settings

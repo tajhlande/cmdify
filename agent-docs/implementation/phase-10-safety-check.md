@@ -1,4 +1,4 @@
-# Phase 9 — Safety Check
+# Phase 10 — Safety Check
 
 ## Goal
 
@@ -53,7 +53,7 @@ src/
 
 ## Implementation Steps
 
-### 9.1 Safety module (`src/safety.rs`)
+### 10.1 Safety module (`src/safety.rs`)
 
 ```rust
 pub fn check(command: &str) -> Option<UnsafeMatch>
@@ -68,7 +68,7 @@ pub struct UnsafeMatch {
 - Patterns should be matched against the trimmed, lowercased command string.
 - Use simple substring or regex matching — no need for AST parsing of shell commands.
 
-### 9.2 CLI flag (`cli.rs`)
+### 10.2 CLI flag (`cli.rs`)
 
 Add to `Cli` struct:
 
@@ -77,7 +77,7 @@ Add to `Cli` struct:
 pub unsafe_mode: bool,
 ```
 
-### 9.3 Wire into main.rs
+### 10.3 Wire into main.rs
 
 After the orchestrator returns a command, before printing:
 
@@ -99,7 +99,7 @@ match result {
 }
 ```
 
-### 9.4 Config file support
+### 10.4 Config file support
 
 Add `unsafe` field to `FileConfig`:
 

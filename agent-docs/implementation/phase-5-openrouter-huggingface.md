@@ -1,4 +1,4 @@
-# Phase 4 — OpenRouter & HuggingFace Providers
+# Phase 5 — OpenRouter & HuggingFace Providers
 
 ## Goal
 
@@ -28,7 +28,7 @@ tests/
 
 ## Implementation Steps
 
-### 4.1 Refactor shared completions logic
+### 5.1 Refactor shared completions logic
 
 Extract the core of `completions.rs` into reusable internal functions:
 
@@ -49,7 +49,7 @@ pub(crate) fn format_completions_tools(tools: &[ToolDefinition]) -> serde_json::
 pub(crate) fn parse_completions_response(body: &serde_json::Value) -> Result<ProviderResponse> { ... }
 ```
 
-### 4.2 OpenRouter provider (`src/provider/openrouter.rs`)
+### 5.2 OpenRouter provider (`src/provider/openrouter.rs`)
 
 Thin struct:
 
@@ -68,7 +68,7 @@ pub struct OpenRouterProvider {
 - Delegates to `send_completions_request()`
 - Additional header: `HTTP-Referer` for OpenRouter's ranking (optional, can add later)
 
-### 4.3 HuggingFace provider (`src/provider/huggingface.rs`)
+### 5.3 HuggingFace provider (`src/provider/huggingface.rs`)
 
 Thin struct, same pattern:
 
@@ -86,12 +86,12 @@ pub struct HuggingFaceProvider {
 - Auth header: `Authorization: Bearer {HUGGINGFACE_API_KEY}`
 - Delegates to `send_completions_request()`
 
-### 4.4 Config and factory updates
+### 5.4 Config and factory updates
 
 - `config.rs`: add match arms for `"openrouter"` and `"huggingface"` in `ProviderSettings::from_env()`
 - `provider/mod.rs`: add match arms in `create_provider()`
 
-### 4.5 API key required for named providers
+### 5.5 API key required for named providers
 
 Unlike the generic `completions` provider (where the key is optional for local models), named providers like OpenRouter and HuggingFace require their API key. The `ProviderSettings::header()` constructor should error if the key env var is missing.
 

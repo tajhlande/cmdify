@@ -3,6 +3,7 @@ use crate::debug;
 use crate::error::Error;
 use crate::logger::CmdifyLogger;
 use crate::provider::{create_provider, Message};
+use crate::spinner::SpinnerPause;
 use crate::tools::ToolRegistry;
 
 const MAX_TOOL_ITERATIONS: usize = 10;
@@ -11,10 +12,11 @@ pub async fn run(
     prompt: &str,
     config: &Config,
     logger: Option<&CmdifyLogger>,
+    spinner: Option<&SpinnerPause>,
 ) -> Result<String, Error> {
     let system_prompt = crate::prompt::load_system_prompt(config)?;
 
-    let registry = ToolRegistry::new(config.blind, config.no_tools);
+    let registry = ToolRegistry::new(config.quiet, config.blind, config.no_tools);
     let tool_definitions = registry.definitions();
     let provider = create_provider(config)?;
 
@@ -73,7 +75,12 @@ pub async fn run(
             for tool_call in &response.tool_calls {
                 debug!("Tool call: {}({})", tool_call.name, tool_call.arguments);
                 let result = registry
-                    .execute(&tool_call.name, tool_call.arguments.clone(), logger)
+                    .execute(
+                        &tool_call.name,
+                        tool_call.arguments.clone(),
+                        logger,
+                        spinner,
+                    )
                     .await?;
                 debug!("Tool result: {} → {}", tool_call.name, result.content);
                 messages.push(Message::ToolResult {

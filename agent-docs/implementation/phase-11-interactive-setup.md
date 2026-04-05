@@ -1,4 +1,4 @@
-# Phase 10 — Interactive Setup
+# Phase 11 — Interactive Setup
 
 ## Goal
 
@@ -60,7 +60,7 @@ src/
 
 ## Implementation Steps
 
-### 10.1 CLI flag (`cli.rs`)
+### 11.1 CLI flag (`cli.rs`)
 
 ```rust
 #[arg(long = "setup", help = "Run interactive setup wizard")]
@@ -69,7 +69,7 @@ pub setup: bool,
 
 Note: no short flag for `--setup` to avoid conflicts with `-s` (spinner).
 
-### 10.2 Config directory detection
+### 11.2 Config directory detection
 
 Add a public function to `config.rs`:
 
@@ -95,7 +95,7 @@ pub fn config_exists() -> bool {
 
 The existing private `config_file_path()` function should be refactored to use this shared implementation.
 
-### 10.3 Setup module (`src/setup.rs`)
+### 11.3 Setup module (`src/setup.rs`)
 
 ```rust
 pub fn run_interactive(existing_config: Option<&FileConfig>) -> Result<()>
@@ -108,7 +108,7 @@ pub fn run_interactive(existing_config: Option<&FileConfig>) -> Result<()>
 - Prints shell export commands for API keys
 - Does NOT store API keys in the config file
 
-### 10.4 First-run detection in `main.rs`
+### 11.4 First-run detection in `main.rs`
 
 Startup flow in `main()`:
 
@@ -145,7 +145,7 @@ if !config::config_exists() && !cli.quiet {
 }
 ```
 
-### 10.5 Provider-specific suggestions
+### 11.5 Provider-specific suggestions
 
 During setup, after the user selects a provider, show a suggested default model name:
 

@@ -93,8 +93,9 @@ async fn main() {
     let lg = logger::CmdifyLogger::new(&config.model_name, &config.provider_name);
 
     let spinner_handle = spinner::Spinner::start(spinner);
+    let pause_handle = spinner_handle.pause_handle();
 
-    let result = orchestrator::run(&user_prompt, &config, Some(&lg)).await;
+    let result = orchestrator::run(&user_prompt, &config, Some(&lg), Some(&pause_handle)).await;
 
     spinner_handle.stop();
 

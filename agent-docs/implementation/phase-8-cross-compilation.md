@@ -1,4 +1,4 @@
-# Phase 7 — Cross-Compilation & Build Targets
+# Phase 8 — Cross-Compilation & Build Targets
 
 ## Goal
 
@@ -30,7 +30,7 @@ Makefile        # MODIFY: add dist target, cross-compilation
 
 ## Implementation Steps
 
-### 7.1 Rust toolchain targets
+### 8.1 Rust toolchain targets
 
 Add required targets:
 
@@ -42,7 +42,7 @@ rustup target add aarch64-unknown-linux-musl
 rustup target add armv7-unknown-linux-musleabihf
 ```
 
-### 7.2 `.cargo/config.toml`
+### 8.2 `.cargo/config.toml`
 
 Configure per-target settings:
 
@@ -59,7 +59,7 @@ linker = "arm-linux-musleabihf-gcc"
 
 Note: musl cross-compilers must be installed on the build host (e.g., via `brew install filosottile/musl-cross/musl-cross` on macOS, or `apt install musl-tools` on Linux).
 
-### 7.3 `Makefile dist` target
+### 8.3 `Makefile dist` target
 
 ```makefile
 TARGETS = \
@@ -84,7 +84,7 @@ dist-clean:
 	rm -rf $(DIST_DIR)
 ```
 
-### 7.4 Platform-specific considerations
+### 8.4 Platform-specific considerations
 
 **macOS Apple Silicon → Intel cross-compilation:**
 - Works natively with `rustup target add x86_64-apple-darwin`
@@ -107,7 +107,7 @@ dist-clean:
 - `cross build --release --target <target>` handles toolchain setup automatically
 - Add a `Cross.toml` if needed for custom Docker images
 
-### 7.5 Binary verification
+### 8.5 Binary verification
 
 After building, verify each binary:
 

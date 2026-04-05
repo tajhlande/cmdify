@@ -1,17 +1,16 @@
+pub mod ask_user;
 pub mod find_command;
-// TODO(Phase 3): Add ask_user module for interactive clarification tool
 
 use async_trait::async_trait;
 
 use crate::error::{Error, Result};
 use crate::logger::CmdifyLogger;
 use crate::provider::ToolDefinition;
+use crate::spinner::SpinnerPause;
 
+pub use ask_user::AskUserTool;
 pub use find_command::FindCommandTool;
 
-// Intentionally kept as a struct rather than a type alias so that future tools
-// (e.g., ask_user in Phase 3) can add fields like metadata or timing without
-// changing the return type signature across the Tool trait.
 #[derive(Debug)]
 pub struct ToolOutput {
     pub content: String,
@@ -25,6 +24,7 @@ pub trait Tool: Send + Sync {
         &self,
         arguments: serde_json::Value,
         logger: Option<&CmdifyLogger>,
+        spinner: Option<&SpinnerPause>,
     ) -> Result<ToolOutput>;
 }
 
@@ -33,11 +33,16 @@ pub struct ToolRegistry {
 }
 
 impl ToolRegistry {
-    pub fn new(blind: bool, no_tools: bool) -> Self {
+    pub fn new(quiet: bool, blind: bool, no_tools: bool) -> Self {
         let mut tools: Vec<Box<dyn Tool>> = Vec::new();
 
-        if !no_tools && !blind {
-            tools.push(Box::new(FindCommandTool::default()));
+        if !no_tools {
+            if !quiet {
+                tools.push(Box::new(AskUserTool::default()));
+            }
+            if !blind {
+                tools.push(Box::new(FindCommandTool::default()));
+            }
         }
 
         Self { tools }
@@ -57,12 +62,13 @@ impl ToolRegistry {
         name: &str,
         args: serde_json::Value,
         logger: Option<&CmdifyLogger>,
+        spinner: Option<&SpinnerPause>,
     ) -> Result<ToolOutput> {
         self.tools
             .iter()
             .find(|t| t.name() == name)
             .ok_or_else(|| Error::ToolError(format!("unknown tool: {}", name)))?
-            .execute(args, logger)
+            .execute(args, logger, spinner)
             .await
     }
 }
@@ -72,32 +78,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn registry_with_tools_enabled() {
-        let registry = ToolRegistry::new(false, false);
-        assert_eq!(registry.definitions().len(), 1);
-        assert_eq!(registry.definitions()[0].name, "find_command");
+    fn registry_with_both_tools() {
+        let registry = ToolRegistry::new(false, false, false);
+        let defs = registry.definitions();
+        assert_eq!(defs.len(), 2);
+        let names: Vec<&str> = defs.iter().map(|d| d.name.as_str()).collect();
+        assert!(names.contains(&"ask_user"));
+        assert!(names.contains(&"find_command"));
         assert!(!registry.is_empty());
     }
 
     #[test]
+    fn registry_with_quiet_flag() {
+        let registry = ToolRegistry::new(true, false, false);
+        assert_eq!(registry.definitions().len(), 1);
+        assert_eq!(registry.definitions()[0].name, "find_command");
+    }
+
+    #[test]
     fn registry_with_blind_flag() {
-        let registry = ToolRegistry::new(true, false);
-        assert!(registry.is_empty());
-        assert!(registry.definitions().is_empty());
+        let registry = ToolRegistry::new(false, true, false);
+        assert_eq!(registry.definitions().len(), 1);
+        assert_eq!(registry.definitions()[0].name, "ask_user");
     }
 
     #[test]
     fn registry_with_no_tools_flag() {
-        let registry = ToolRegistry::new(false, true);
+        let registry = ToolRegistry::new(false, false, true);
         assert!(registry.is_empty());
         assert!(registry.definitions().is_empty());
     }
 
     #[tokio::test]
     async fn execute_unknown_tool_errors() {
-        let registry = ToolRegistry::new(false, false);
+        let registry = ToolRegistry::new(false, false, false);
         let result = registry
-            .execute("nonexistent", serde_json::json!({}), None)
+            .execute("nonexistent", serde_json::json!({}), None, None)
             .await;
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
@@ -105,8 +121,46 @@ mod tests {
     }
 
     #[test]
-    fn registry_both_flags_set() {
-        let registry = ToolRegistry::new(true, true);
+    fn registry_all_flags_set() {
+        let registry = ToolRegistry::new(true, true, true);
         assert!(registry.is_empty());
+    }
+
+    #[test]
+    fn registry_quiet_and_blind() {
+        let registry = ToolRegistry::new(true, true, false);
+        assert!(registry.is_empty());
+    }
+
+    #[tokio::test]
+    async fn execute_find_command_directly() {
+        let registry = ToolRegistry::new(false, false, false);
+        let result = registry
+            .execute(
+                "find_command",
+                serde_json::json!({"command": "sh"}),
+                None,
+                None,
+            )
+            .await;
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn ask_user_excluded_when_quiet() {
+        let registry = ToolRegistry::new(true, false, false);
+        let defs = registry.definitions();
+        let names: Vec<&str> = defs.iter().map(|d| d.name.as_str()).collect();
+        assert!(!names.contains(&"ask_user"));
+        assert!(names.contains(&"find_command"));
+    }
+
+    #[test]
+    fn find_command_excluded_when_blind() {
+        let registry = ToolRegistry::new(false, true, false);
+        let defs = registry.definitions();
+        let names: Vec<&str> = defs.iter().map(|d| d.name.as_str()).collect();
+        assert!(names.contains(&"ask_user"));
+        assert!(!names.contains(&"find_command"));
     }
 }

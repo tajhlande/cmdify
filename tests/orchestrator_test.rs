@@ -66,7 +66,7 @@ async fn single_shot_no_tool_calls() {
         .mount(&server)
         .await;
 
-    let result = orchestrator::run("find all text files", &config, None)
+    let result = orchestrator::run("find all text files", &config, None, None)
         .await
         .unwrap();
     assert_eq!(result, "find . -name '*.txt'");
@@ -108,7 +108,7 @@ async fn tool_call_loop_returns_final_answer() {
         .mount(&server)
         .await;
 
-    let result = orchestrator::run("list all files", &config, None)
+    let result = orchestrator::run("list all files", &config, None, None)
         .await
         .unwrap();
     assert_eq!(result, "ls -la");
@@ -131,7 +131,7 @@ async fn no_tools_with_blind_flag() {
         .mount(&server)
         .await;
 
-    let result = orchestrator::run("list files", &config, None)
+    let result = orchestrator::run("list files", &config, None, None)
         .await
         .unwrap();
     assert_eq!(result, "ls -la");
@@ -154,7 +154,7 @@ async fn no_tools_with_no_tools_flag() {
         .mount(&server)
         .await;
 
-    let result = orchestrator::run("list files", &config, None)
+    let result = orchestrator::run("list files", &config, None, None)
         .await
         .unwrap();
     assert_eq!(result, "ls");
@@ -176,7 +176,7 @@ async fn empty_response_errors() {
         .mount(&server)
         .await;
 
-    let result = orchestrator::run("test", &config, None).await;
+    let result = orchestrator::run("test", &config, None, None).await;
     assert!(result.is_err());
     assert!(result
         .unwrap_err()
@@ -197,8 +197,31 @@ async fn provider_error_propagates() {
         .mount(&server)
         .await;
 
-    let result = orchestrator::run("test", &config, None).await;
+    let result = orchestrator::run("test", &config, None, None).await;
     assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn no_tools_with_quiet_flag() {
+    let server = MockServer::start().await;
+    let mut config = make_config(&server.uri());
+    config.quiet = true;
+
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{
+                "message": { "role": "assistant", "content": "ls" },
+                "finish_reason": "stop"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let result = orchestrator::run("list files", &config, None, None)
+        .await
+        .unwrap();
+    assert_eq!(result, "ls");
 }
 
 #[tokio::test]
@@ -225,7 +248,7 @@ async fn max_iterations_exceeded() {
         .mount(&server)
         .await;
 
-    let result = orchestrator::run("keep asking", &config, None).await;
+    let result = orchestrator::run("keep asking", &config, None, None).await;
     assert!(result.is_err());
     let err = result.unwrap_err().to_string();
     assert!(

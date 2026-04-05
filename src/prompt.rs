@@ -44,6 +44,7 @@ mod tests {
             blind: false,
             no_tools: false,
             yolo: false,
+            debug_level: 0,
             provider_settings: crate::config::ProviderSettings {
                 api_key: None,
                 base_url: "http://localhost".into(),

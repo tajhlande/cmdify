@@ -22,7 +22,7 @@ This plan breaks the full `cmdify` design into incremental, testable phases. Eac
 | 8 | ⬜ | CI/CD & Distribution | GitHub Actions, releases, polish | Automated testing, release workflow, docs |
 | 9 | 📝 | Safety Check | Unsafe command detection, `--unsafe` flag | Safety module, pattern matching, CLI flag |
 | 10 | 📝 | Interactive Setup | `--setup` flag, first-run detection, config wizard | Setup module, interactive prompts, config file creation |
-| 11 | 📝 | Debug Mode | Debug logging, `--debug` flag | Debug logging module, stderr trace output, configurable verbosity |
+| 11 | ✅ | Debug Mode | Debug logging, `--debug` flag | Debug logging module, stderr trace output, configurable verbosity |
 
 ---
 

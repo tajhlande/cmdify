@@ -2,6 +2,8 @@ use async_trait::async_trait;
 use serde_json::json;
 
 use crate::config::Config;
+use crate::debug;
+use crate::debug_json;
 use crate::error::{Error, Result};
 use crate::provider::{
     FinishReason, Message, Provider, ProviderResponse, ToolCall, ToolDefinition,
@@ -170,18 +172,45 @@ impl Provider for CompletionsProvider {
 
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
 
+        debug!("Sending request to {}", url);
+        debug_json!("Request body", &body);
+
         let mut request = self.client.post(&url).json(&body);
 
+        // TODO: Use config.provider_settings.auth_style to determine auth header
+        // name/prefix instead of hardcoding "Authorization"/"Bearer ". This will be
+        // wired up when the named provider wrappers are implemented (Phase 4-6).
         if let Some(key) = &self.api_key {
             request = request.header("Authorization", format!("Bearer {}", key));
         }
 
+        let start = std::time::Instant::now();
         let response = request.send().await?;
+        let elapsed = start.elapsed().as_millis();
 
         let status = response.status();
-        let body: serde_json::Value = response.json().await?;
+        let raw_body = response.text().await?;
+
+        debug!(
+            "Received response (status {} in {}ms)",
+            status.as_u16(),
+            elapsed
+        );
+
+        let body: serde_json::Value = match serde_json::from_str(&raw_body) {
+            Ok(v) => v,
+            Err(e) => {
+                debug!("Failed to decode response body as JSON: {}", e);
+                debug!("Raw response body:\n{}", raw_body);
+                return Err(Error::ProviderError(format!(
+                    "error decoding response body: {}",
+                    e
+                )));
+            }
+        };
 
         if !status.is_success() {
+            debug_json!("Error response", &body);
             let error_msg = body
                 .get("error")
                 .and_then(|e| e.get("message"))
@@ -194,6 +223,8 @@ impl Provider for CompletionsProvider {
                 error_msg,
             )));
         }
+
+        debug_json!("Response body", &body);
 
         self.parse_response(&body)
     }
@@ -223,6 +254,7 @@ mod tests {
             blind: false,
             no_tools: false,
             yolo: false,
+            debug_level: 0,
             provider_settings: crate::config::ProviderSettings {
                 api_key: api_key.map(|k| k.into()),
                 base_url: base_url.into(),

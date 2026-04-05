@@ -1,15 +1,37 @@
 use async_trait::async_trait;
 use serde_json::json;
 
+use crate::debug;
 use crate::error::{Error, Result};
 use crate::logger::CmdifyLogger;
 use crate::provider::ToolDefinition;
 
 use super::{Tool, ToolOutput};
 
-pub struct FindCommandTool;
+const DEFAULT_TIMEOUT_SECS: u64 = 5;
 
-const TIMEOUT_SECS: u64 = 5;
+pub struct FindCommandTool {
+    timeout_secs: u64,
+}
+
+impl Default for FindCommandTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl FindCommandTool {
+    pub fn new() -> Self {
+        Self {
+            timeout_secs: DEFAULT_TIMEOUT_SECS,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn with_timeout(secs: u64) -> Self {
+        Self { timeout_secs: secs }
+    }
+}
 
 #[async_trait]
 impl Tool for FindCommandTool {
@@ -50,15 +72,23 @@ impl Tool for FindCommandTool {
             .and_then(|v| v.as_str())
             .ok_or_else(|| Error::ToolError("missing 'command' argument".into()))?;
 
+        debug!("find_command: looking up '{}'", command);
+
         let result = tokio::time::timeout(
-            std::time::Duration::from_secs(TIMEOUT_SECS),
+            std::time::Duration::from_secs(self.timeout_secs),
             lookup_command(command, logger),
         )
         .await;
 
         match result {
-            Ok(Ok(path)) => Ok(ToolOutput { content: path }),
-            Ok(Err(_)) => Ok(ToolOutput {
+            Ok(Some(ref path)) => debug!("find_command: found at '{}'", path),
+            Ok(None) => debug!("find_command: '{}' not found", command),
+            Err(_) => debug!("find_command: lookup timed out for '{}'", command),
+        }
+
+        match result {
+            Ok(Some(path)) => Ok(ToolOutput { content: path }),
+            Ok(None) => Ok(ToolOutput {
                 content: "not found".into(),
             }),
             Err(_) => Ok(ToolOutput {
@@ -68,13 +98,12 @@ impl Tool for FindCommandTool {
     }
 }
 
-async fn lookup_command(
-    command: &str,
-    logger: Option<&CmdifyLogger>,
-) -> std::result::Result<String, ()> {
+async fn lookup_command(command: &str, logger: Option<&CmdifyLogger>) -> Option<String> {
     if let Some(lg) = logger {
         lg.log("find_command", &format!("command -v {}", command));
     }
+
+    debug!("shell exec: command -v {}", command);
 
     let output = tokio::process::Command::new("sh")
         .arg("-c")
@@ -83,12 +112,12 @@ async fn lookup_command(
         .arg(command)
         .output()
         .await
-        .map_err(|_| ())?;
+        .ok()?;
 
     if output.status.success() {
         let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
         if !path.is_empty() {
-            return Ok(path);
+            return Some(path);
         }
     }
 
@@ -96,20 +125,22 @@ async fn lookup_command(
         lg.log("find_command", &format!("which {}", command));
     }
 
+    debug!("shell exec: which {}", command);
+
     let output = tokio::process::Command::new("which")
         .arg(command)
         .output()
         .await
-        .map_err(|_| ())?;
+        .ok()?;
 
     if output.status.success() {
         let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
         if !path.is_empty() {
-            return Ok(path);
+            return Some(path);
         }
     }
 
-    Err(())
+    None
 }
 
 #[cfg(test)]
@@ -117,7 +148,7 @@ mod tests {
     use super::*;
 
     fn tool() -> FindCommandTool {
-        FindCommandTool
+        FindCommandTool::default()
     }
 
     #[test]
@@ -195,5 +226,13 @@ mod tests {
         assert!(result.is_ok());
         let output = result.unwrap().content;
         assert_eq!(output, "/bin/sh");
+    }
+
+    #[tokio::test]
+    async fn timeout_returns_error_message() {
+        let slow_tool = FindCommandTool::with_timeout(0);
+        let result = slow_tool.execute(json!({"command": "sh"}), None).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().content, "error: command lookup timed out");
     }
 }

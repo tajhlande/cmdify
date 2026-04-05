@@ -25,6 +25,20 @@ pub struct Spinner {
     handle: Option<thread::JoinHandle<()>>,
 }
 
+impl Drop for Spinner {
+    fn drop(&mut self) {
+        if let Some(running) = self.running.take() {
+            running.store(false, Ordering::Relaxed);
+        }
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+        let mut stderr = io::stderr();
+        let _ = write!(stderr, "\r   \r");
+        let _ = stderr.flush();
+    }
+}
+
 impl Spinner {
     pub fn start(selection: u8) -> Self {
         if !io::stderr().is_terminal() {
@@ -56,11 +70,11 @@ impl Spinner {
         }
     }
 
-    pub fn stop(self) {
-        if let Some(running) = self.running {
+    pub fn stop(mut self) {
+        if let Some(running) = self.running.take() {
             running.store(false, Ordering::Relaxed);
         }
-        if let Some(handle) = self.handle {
+        if let Some(handle) = self.handle.take() {
             let _ = handle.join();
         }
         let mut stderr = io::stderr();

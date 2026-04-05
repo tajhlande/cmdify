@@ -7,6 +7,13 @@ use crate::error::{Error, Result};
 
 const DEFAULT_MAX_TOKENS: u32 = 16384;
 
+#[derive(Debug, Clone)]
+pub struct ConfigSource {
+    pub key: String,
+    pub value: String,
+    pub source: String,
+}
+
 fn config_file_path() -> Option<PathBuf> {
     if let Ok(xdg) = env::var("XDG_CONFIG_HOME") {
         let p = PathBuf::from(xdg).join("cmdify").join("config.toml");
@@ -41,8 +48,197 @@ fn parse_bool_env(var: &str) -> Option<bool> {
     }
 }
 
+fn parse_debug_env(var: &str) -> Option<u8> {
+    match std::env::var(var).ok()?.to_lowercase().as_str() {
+        "0" | "false" | "no" => Some(0),
+        "1" | "true" | "yes" => Some(1),
+        "2" => Some(2),
+        _ => None,
+    }
+}
+
 fn parse_u8_env(var: &str) -> Option<u8> {
     std::env::var(var).ok()?.parse().ok()
+}
+
+fn resolve_string(
+    env_var: &str,
+    file_value: Option<String>,
+    sources: &mut Vec<ConfigSource>,
+    key: &str,
+) -> Option<String> {
+    match env::var(env_var).ok() {
+        Some(v) => {
+            sources.push(ConfigSource {
+                key: key.into(),
+                value: v.clone(),
+                source: "env".into(),
+            });
+            Some(v)
+        }
+        None => match file_value {
+            Some(v) => {
+                sources.push(ConfigSource {
+                    key: key.into(),
+                    value: v.clone(),
+                    source: "file".into(),
+                });
+                Some(v)
+            }
+            None => None,
+        },
+    }
+}
+
+fn resolve_bool(
+    env_var: &str,
+    file_value: Option<bool>,
+    sources: &mut Vec<ConfigSource>,
+    key: &str,
+) -> Option<bool> {
+    match parse_bool_env(env_var) {
+        Some(v) => {
+            sources.push(ConfigSource {
+                key: key.into(),
+                value: v.to_string(),
+                source: "env".into(),
+            });
+            Some(v)
+        }
+        None => match file_value {
+            Some(v) => {
+                sources.push(ConfigSource {
+                    key: key.into(),
+                    value: v.to_string(),
+                    source: "file".into(),
+                });
+                Some(v)
+            }
+            None => None,
+        },
+    }
+}
+
+fn resolve_u8(
+    env_var: &str,
+    file_value: Option<u8>,
+    sources: &mut Vec<ConfigSource>,
+    key: &str,
+) -> Option<u8> {
+    match parse_u8_env(env_var) {
+        Some(v) => {
+            sources.push(ConfigSource {
+                key: key.into(),
+                value: v.to_string(),
+                source: "env".into(),
+            });
+            Some(v)
+        }
+        None => match file_value {
+            Some(v) => {
+                sources.push(ConfigSource {
+                    key: key.into(),
+                    value: v.to_string(),
+                    source: "file".into(),
+                });
+                Some(v)
+            }
+            None => None,
+        },
+    }
+}
+
+fn resolve_optional_url(
+    env_var: &str,
+    file_url: Option<String>,
+    sources: &mut Vec<ConfigSource>,
+) -> Option<String> {
+    match env::var(env_var).ok() {
+        Some(v) => {
+            sources.push(ConfigSource {
+                key: "base_url".into(),
+                value: v.clone(),
+                source: "env".into(),
+            });
+            Some(v)
+        }
+        None => match file_url {
+            Some(v) => {
+                sources.push(ConfigSource {
+                    key: "base_url".into(),
+                    value: v.clone(),
+                    source: "file".into(),
+                });
+                Some(v)
+            }
+            None => None,
+        },
+    }
+}
+
+fn resolve_required_url(
+    env_var: &str,
+    file_url: Option<String>,
+    sources: &mut Vec<ConfigSource>,
+) -> Result<String> {
+    match env::var(env_var).ok() {
+        Some(v) => {
+            sources.push(ConfigSource {
+                key: "base_url".into(),
+                value: v.clone(),
+                source: "env".into(),
+            });
+            Ok(v)
+        }
+        None => match file_url {
+            Some(v) => {
+                sources.push(ConfigSource {
+                    key: "base_url".into(),
+                    value: v.clone(),
+                    source: "file".into(),
+                });
+                Ok(v)
+            }
+            None => Err(Error::ConfigError(format!("{} is required", env_var))),
+        },
+    }
+}
+
+fn record_api_key(env_var: &str, sources: &mut Vec<ConfigSource>) {
+    if env::var(env_var).is_ok() {
+        sources.push(ConfigSource {
+            key: "api_key".into(),
+            value: "***".into(),
+            source: "env".into(),
+        });
+    }
+}
+
+fn resolve_provider_settings(
+    key_var: &str,
+    url_env_var: &str,
+    file_url: Option<String>,
+    default_url: Option<&str>,
+    auth_style: AuthStyle,
+    sources: &mut Vec<ConfigSource>,
+    no_key: bool,
+) -> Result<ProviderSettings> {
+    let base_url = if let Some(default) = default_url {
+        resolve_optional_url(url_env_var, file_url, sources).unwrap_or_else(|| default.into())
+    } else {
+        resolve_required_url(url_env_var, file_url, sources)?
+    };
+
+    let api_key = if no_key { None } else { env::var(key_var).ok() };
+    if !no_key {
+        record_api_key(key_var, sources);
+    }
+
+    Ok(ProviderSettings {
+        api_key,
+        base_url,
+        auth_style,
+    })
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -63,7 +259,6 @@ struct ProviderUrls {
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
-#[allow(dead_code)]
 struct FileConfig {
     provider_name: Option<String>,
     model_name: Option<String>,
@@ -75,12 +270,15 @@ struct FileConfig {
     blind: Option<bool>,
     no_tools: Option<bool>,
     yolo: Option<bool>,
+    debug: Option<bool>,
     #[serde(default)]
     providers: ProviderUrls,
 }
 
 impl Config {
-    pub fn from_env(explicit_config_path: Option<&Path>) -> Result<Self> {
+    pub fn from_env(explicit_config_path: Option<&Path>) -> Result<(Self, Vec<ConfigSource>)> {
+        let mut sources: Vec<ConfigSource> = Vec::new();
+
         let effective_path = match explicit_config_path {
             Some(path) => Some(path.to_path_buf()),
             None => env::var("CMDIFY_CONFIG").ok().map(PathBuf::from),
@@ -102,315 +300,328 @@ impl Config {
             },
         };
 
-        let provider_name = env::var("CMDIFY_PROVIDER_NAME").ok()
-            .or_else(|| file_config.as_ref().and_then(|f| f.provider_name.clone()))
-            .ok_or_else(|| Error::ConfigError(
-                "CMDIFY_PROVIDER_NAME is required (set env var or provider_name in config file)".into(),
-            ))?;
+        let provider_name = resolve_string(
+            "CMDIFY_PROVIDER_NAME",
+            file_config.as_ref().and_then(|f| f.provider_name.clone()),
+            &mut sources,
+            "provider_name",
+        )
+        .ok_or_else(|| {
+            Error::ConfigError(
+                "CMDIFY_PROVIDER_NAME is required (set env var or provider_name in config file)"
+                    .into(),
+            )
+        })?;
 
-        let model_name = env::var("CMDIFY_MODEL_NAME")
-            .ok()
-            .or_else(|| file_config.as_ref().and_then(|f| f.model_name.clone()))
-            .ok_or_else(|| {
-                Error::ConfigError(
-                    "CMDIFY_MODEL_NAME is required (set env var or model_name in config file)"
-                        .into(),
-                )
-            })?;
+        let model_name = resolve_string(
+            "CMDIFY_MODEL_NAME",
+            file_config.as_ref().and_then(|f| f.model_name.clone()),
+            &mut sources,
+            "model_name",
+        )
+        .ok_or_else(|| {
+            Error::ConfigError(
+                "CMDIFY_MODEL_NAME is required (set env var or model_name in config file)".into(),
+            )
+        })?;
 
         let max_tokens = env::var("CMDIFY_MAX_TOKENS")
             .ok()
-            .and_then(|v| v.parse().ok())
-            .or_else(|| file_config.as_ref().and_then(|f| f.max_tokens))
+            .and_then(|v| v.parse::<u32>().ok())
+            .inspect(|v| {
+                sources.push(ConfigSource {
+                    key: "max_tokens".into(),
+                    value: v.to_string(),
+                    source: "env".into(),
+                });
+            })
+            .or(file_config.as_ref().and_then(|f| {
+                f.max_tokens.inspect(|v| {
+                    sources.push(ConfigSource {
+                        key: "max_tokens".into(),
+                        value: v.to_string(),
+                        source: "file".into(),
+                    });
+                })
+            }))
             .unwrap_or(DEFAULT_MAX_TOKENS);
 
-        let system_prompt_override = env::var("CMDIFY_SYSTEM_PROMPT_FILE").ok().or_else(|| {
+        let system_prompt_override = resolve_string(
+            "CMDIFY_SYSTEM_PROMPT_FILE",
             file_config
                 .as_ref()
-                .and_then(|f| f.system_prompt_file.clone())
-        });
+                .and_then(|f| f.system_prompt_file.clone()),
+            &mut sources,
+            "system_prompt_file",
+        );
 
-        let spinner = parse_u8_env("CMDIFY_SPINNER")
-            .or_else(|| file_config.as_ref().and_then(|f| f.spinner))
-            .unwrap_or(1);
+        let spinner = resolve_u8(
+            "CMDIFY_SPINNER",
+            file_config.as_ref().and_then(|f| f.spinner),
+            &mut sources,
+            "spinner",
+        )
+        .unwrap_or(1);
 
-        let allow_unsafe = parse_bool_env("CMDIFY_UNSAFE")
-            .or(file_config.as_ref().and_then(|f| f.allow_unsafe))
-            .unwrap_or(false);
+        let allow_unsafe = resolve_bool(
+            "CMDIFY_UNSAFE",
+            file_config.as_ref().and_then(|f| f.allow_unsafe),
+            &mut sources,
+            "allow_unsafe",
+        )
+        .unwrap_or(false);
 
-        let quiet = parse_bool_env("CMDIFY_QUIET")
-            .or(file_config.as_ref().and_then(|f| f.quiet))
-            .unwrap_or(false);
+        let quiet = resolve_bool(
+            "CMDIFY_QUIET",
+            file_config.as_ref().and_then(|f| f.quiet),
+            &mut sources,
+            "quiet",
+        )
+        .unwrap_or(false);
 
-        let blind = parse_bool_env("CMDIFY_BLIND")
-            .or(file_config.as_ref().and_then(|f| f.blind))
-            .unwrap_or(false);
+        let blind = resolve_bool(
+            "CMDIFY_BLIND",
+            file_config.as_ref().and_then(|f| f.blind),
+            &mut sources,
+            "blind",
+        )
+        .unwrap_or(false);
 
-        let no_tools = parse_bool_env("CMDIFY_NO_TOOLS")
-            .or(file_config.as_ref().and_then(|f| f.no_tools))
-            .unwrap_or(false);
+        let no_tools = resolve_bool(
+            "CMDIFY_NO_TOOLS",
+            file_config.as_ref().and_then(|f| f.no_tools),
+            &mut sources,
+            "no_tools",
+        )
+        .unwrap_or(false);
 
-        let yolo = parse_bool_env("CMDIFY_YOLO")
-            .or(file_config.as_ref().and_then(|f| f.yolo))
-            .unwrap_or(false);
+        let yolo = resolve_bool(
+            "CMDIFY_YOLO",
+            file_config.as_ref().and_then(|f| f.yolo),
+            &mut sources,
+            "yolo",
+        )
+        .unwrap_or(false);
 
-        let provider_settings = ProviderSettings::from_env(&provider_name, file_config.as_ref())?;
+        let debug_level = match parse_debug_env("CMDIFY_DEBUG") {
+            Some(v) => {
+                if v > 0 {
+                    sources.push(ConfigSource {
+                        key: "debug".into(),
+                        value: v.to_string(),
+                        source: "env".into(),
+                    });
+                }
+                v
+            }
+            None => match file_config.as_ref().and_then(|f| f.debug) {
+                Some(true) => {
+                    sources.push(ConfigSource {
+                        key: "debug".into(),
+                        value: "1".into(),
+                        source: "file".into(),
+                    });
+                    1
+                }
+                _ => 0,
+            },
+        };
 
-        Ok(Self {
-            provider_name,
-            model_name,
-            max_tokens,
-            system_prompt_override,
-            spinner,
-            allow_unsafe,
-            quiet,
-            blind,
-            no_tools,
-            yolo,
-            provider_settings,
-        })
+        let provider_settings =
+            ProviderSettings::from_env(&provider_name, file_config.as_ref(), &mut sources)?;
+
+        Ok((
+            Self {
+                provider_name,
+                model_name,
+                max_tokens,
+                system_prompt_override,
+                spinner,
+                allow_unsafe,
+                quiet,
+                blind,
+                no_tools,
+                yolo,
+                debug_level,
+                provider_settings,
+            },
+            sources,
+        ))
     }
 }
 
 impl ProviderSettings {
     #[allow(private_interfaces)]
-    pub fn from_env(provider_name: &str, file_config: Option<&FileConfig>) -> Result<Self> {
+    pub fn from_env(
+        provider_name: &str,
+        file_config: Option<&FileConfig>,
+        sources: &mut Vec<ConfigSource>,
+    ) -> Result<Self> {
         let urls = file_config.map(|f| &f.providers);
 
+        let bearer = AuthStyle::Header {
+            name: "Authorization".into(),
+            prefix: "Bearer ".into(),
+        };
+
         match provider_name {
-            "completions" => {
-                let base_url = env::var("CMDIFY_COMPLETIONS_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.completions_url.clone()))
-                    .ok_or_else(|| {
-                        Error::ConfigError(
-                            "CMDIFY_COMPLETIONS_URL is required for the completions provider"
-                                .into(),
-                        )
-                    })?;
-                let api_key = env::var("CMDIFY_COMPLETIONS_KEY").ok();
-                Ok(Self {
-                    api_key,
-                    base_url,
-                    auth_style: AuthStyle::Header {
-                        name: "Authorization".into(),
-                        prefix: "Bearer ".into(),
-                    },
-                })
-            }
-            "openai" => {
-                let base_url = env::var("OPENAI_BASE_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.openai_base_url.clone()))
-                    .unwrap_or_else(|| "https://api.openai.com".into());
-                let api_key = env::var("OPENAI_API_KEY").ok();
-                Ok(Self {
-                    api_key,
-                    base_url,
-                    auth_style: AuthStyle::Header {
-                        name: "Authorization".into(),
-                        prefix: "Bearer ".into(),
-                    },
-                })
-            }
-            "anthropic" => {
-                let base_url = env::var("ANTHROPIC_BASE_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.anthropic_base_url.clone()))
-                    .unwrap_or_else(|| "https://api.anthropic.com".into());
-                let api_key = env::var("ANTHROPIC_API_KEY").ok();
-                Ok(Self {
-                    api_key,
-                    base_url,
-                    auth_style: AuthStyle::Header {
-                        name: "x-api-key".into(),
-                        prefix: String::new(),
-                    },
-                })
-            }
-            "gemini" => {
-                let base_url = env::var("GEMINI_BASE_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.gemini_base_url.clone()))
-                    .unwrap_or_else(|| "https://generativelanguage.googleapis.com".into());
-                let api_key = env::var("GEMINI_API_KEY").ok();
-                Ok(Self {
-                    api_key,
-                    base_url,
-                    auth_style: AuthStyle::QueryParam { name: "key".into() },
-                })
-            }
-            "mistral" => {
-                let base_url = env::var("MISTRAL_BASE_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.mistral_base_url.clone()))
-                    .unwrap_or_else(|| "https://api.mistral.ai".into());
-                let api_key = env::var("MISTRAL_API_KEY").ok();
-                Ok(Self {
-                    api_key,
-                    base_url,
-                    auth_style: AuthStyle::Header {
-                        name: "Authorization".into(),
-                        prefix: "Bearer ".into(),
-                    },
-                })
-            }
-            "qwen" => {
-                let base_url = env::var("QWEN_BASE_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.qwen_base_url.clone()))
-                    .unwrap_or_else(|| "https://dashscope.aliyuncs.com/compatible-mode".into());
-                let api_key = env::var("QWEN_API_KEY").ok();
-                Ok(Self {
-                    api_key,
-                    base_url,
-                    auth_style: AuthStyle::Header {
-                        name: "Authorization".into(),
-                        prefix: "Bearer ".into(),
-                    },
-                })
-            }
-            "kimi" => {
-                let base_url = env::var("KIMI_BASE_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.kimi_base_url.clone()))
-                    .unwrap_or_else(|| "https://api.moonshot.cn".into());
-                let api_key = env::var("KIMI_API_KEY").ok();
-                Ok(Self {
-                    api_key,
-                    base_url,
-                    auth_style: AuthStyle::Header {
-                        name: "Authorization".into(),
-                        prefix: "Bearer ".into(),
-                    },
-                })
-            }
-            "openrouter" => {
-                let base_url = env::var("OPENROUTER_BASE_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.openrouter_base_url.clone()))
-                    .unwrap_or_else(|| "https://openrouter.ai/api".into());
-                let api_key = env::var("OPENROUTER_API_KEY").ok();
-                Ok(Self {
-                    api_key,
-                    base_url,
-                    auth_style: AuthStyle::Header {
-                        name: "Authorization".into(),
-                        prefix: "Bearer ".into(),
-                    },
-                })
-            }
-            "huggingface" => {
-                let base_url = env::var("HUGGINGFACE_BASE_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.huggingface_base_url.clone()))
-                    .unwrap_or_else(|| "https://api-inference.huggingface.co".into());
-                let api_key = env::var("HUGGINGFACE_API_KEY").ok();
-                Ok(Self {
-                    api_key,
-                    base_url,
-                    auth_style: AuthStyle::Header {
-                        name: "Authorization".into(),
-                        prefix: "Bearer ".into(),
-                    },
-                })
-            }
-            "zai" => {
-                let base_url = env::var("ZAI_BASE_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.zai_base_url.clone()))
-                    .unwrap_or_else(|| "https://api.z.ai".into());
-                let api_key = env::var("ZAI_API_KEY").ok();
-                Ok(Self {
-                    api_key,
-                    base_url,
-                    auth_style: AuthStyle::Header {
-                        name: "Authorization".into(),
-                        prefix: "Bearer ".into(),
-                    },
-                })
-            }
-            "minimax" => {
-                let base_url = env::var("MINIMAX_BASE_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.minimax_base_url.clone()))
-                    .unwrap_or_else(|| "https://api.minimax.chat".into());
-                let api_key = env::var("MINIMAX_API_KEY").ok();
-                Ok(Self {
-                    api_key,
-                    base_url,
-                    auth_style: AuthStyle::Header {
-                        name: "Authorization".into(),
-                        prefix: "Bearer ".into(),
-                    },
-                })
-            }
-            "ollama" => {
-                let base_url = env::var("OLLAMA_BASE_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.ollama_base_url.clone()))
-                    .unwrap_or_else(|| "http://localhost:11434".into());
-                Ok(Self {
-                    api_key: None,
-                    base_url,
-                    auth_style: AuthStyle::Header {
-                        name: "Authorization".into(),
-                        prefix: "Bearer ".into(),
-                    },
-                })
-            }
-            "responses" => {
-                let base_url = env::var("CMDIFY_RESPONSES_URL")
-                    .ok()
-                    .or_else(|| urls.and_then(|u| u.responses_url.clone()))
-                    .ok_or_else(|| {
-                        Error::ConfigError(
-                            "CMDIFY_RESPONSES_URL is required for the responses provider".into(),
-                        )
-                    })?;
-                let api_key = env::var("CMDIFY_RESPONSES_KEY").ok();
-                Ok(Self {
-                    api_key,
-                    base_url,
-                    auth_style: AuthStyle::Header {
-                        name: "Authorization".into(),
-                        prefix: "Bearer ".into(),
-                    },
-                })
-            }
+            "completions" => resolve_provider_settings(
+                "CMDIFY_COMPLETIONS_KEY",
+                "CMDIFY_COMPLETIONS_URL",
+                urls.and_then(|u| u.completions_url.clone()),
+                None,
+                bearer,
+                sources,
+                false,
+            ),
+            "openai" => resolve_provider_settings(
+                "OPENAI_API_KEY",
+                "OPENAI_BASE_URL",
+                urls.and_then(|u| u.openai_base_url.clone()),
+                Some("https://api.openai.com"),
+                bearer,
+                sources,
+                false,
+            ),
+            "anthropic" => resolve_provider_settings(
+                "ANTHROPIC_API_KEY",
+                "ANTHROPIC_BASE_URL",
+                urls.and_then(|u| u.anthropic_base_url.clone()),
+                Some("https://api.anthropic.com"),
+                AuthStyle::Header {
+                    name: "x-api-key".into(),
+                    prefix: String::new(),
+                },
+                sources,
+                false,
+            ),
+            "gemini" => resolve_provider_settings(
+                "GEMINI_API_KEY",
+                "GEMINI_BASE_URL",
+                urls.and_then(|u| u.gemini_base_url.clone()),
+                Some("https://generativelanguage.googleapis.com"),
+                AuthStyle::QueryParam { name: "key".into() },
+                sources,
+                false,
+            ),
+            "mistral" => resolve_provider_settings(
+                "MISTRAL_API_KEY",
+                "MISTRAL_BASE_URL",
+                urls.and_then(|u| u.mistral_base_url.clone()),
+                Some("https://api.mistral.ai"),
+                bearer,
+                sources,
+                false,
+            ),
+            "qwen" => resolve_provider_settings(
+                "QWEN_API_KEY",
+                "QWEN_BASE_URL",
+                urls.and_then(|u| u.qwen_base_url.clone()),
+                Some("https://dashscope.aliyuncs.com/compatible-mode"),
+                bearer,
+                sources,
+                false,
+            ),
+            "kimi" => resolve_provider_settings(
+                "KIMI_API_KEY",
+                "KIMI_BASE_URL",
+                urls.and_then(|u| u.kimi_base_url.clone()),
+                Some("https://api.moonshot.cn"),
+                bearer,
+                sources,
+                false,
+            ),
+            "openrouter" => resolve_provider_settings(
+                "OPENROUTER_API_KEY",
+                "OPENROUTER_BASE_URL",
+                urls.and_then(|u| u.openrouter_base_url.clone()),
+                Some("https://openrouter.ai/api"),
+                bearer,
+                sources,
+                false,
+            ),
+            "huggingface" => resolve_provider_settings(
+                "HUGGINGFACE_API_KEY",
+                "HUGGINGFACE_BASE_URL",
+                urls.and_then(|u| u.huggingface_base_url.clone()),
+                Some("https://api-inference.huggingface.co"),
+                bearer,
+                sources,
+                false,
+            ),
+            "zai" => resolve_provider_settings(
+                "ZAI_API_KEY",
+                "ZAI_BASE_URL",
+                urls.and_then(|u| u.zai_base_url.clone()),
+                Some("https://api.z.ai"),
+                bearer,
+                sources,
+                false,
+            ),
+            "minimax" => resolve_provider_settings(
+                "MINIMAX_API_KEY",
+                "MINIMAX_BASE_URL",
+                urls.and_then(|u| u.minimax_base_url.clone()),
+                Some("https://api.minimax.chat"),
+                bearer,
+                sources,
+                false,
+            ),
+            "ollama" => resolve_provider_settings(
+                "",
+                "OLLAMA_BASE_URL",
+                urls.and_then(|u| u.ollama_base_url.clone()),
+                Some("http://localhost:11434"),
+                bearer,
+                sources,
+                true,
+            ),
+            "responses" => resolve_provider_settings(
+                "CMDIFY_RESPONSES_KEY",
+                "CMDIFY_RESPONSES_URL",
+                urls.and_then(|u| u.responses_url.clone()),
+                None,
+                bearer,
+                sources,
+                false,
+            ),
             other => Err(Error::ConfigError(format!("unknown provider: {}", other))),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+// TODO(Phase 4-6): Remove #[allow(dead_code)] once provider implementations
+// read auth_style to set headers/query params. Currently only the completions
+// provider exists and hardcodes "Authorization: Bearer" (see provider/completions.rs).
 #[allow(dead_code)]
+#[derive(Debug, Clone)]
 pub enum AuthStyle {
     Header { name: String, prefix: String },
     QueryParam { name: String },
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct ProviderSettings {
     pub api_key: Option<String>,
     pub base_url: String,
+    #[allow(dead_code)]
     pub auth_style: AuthStyle,
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct Config {
     pub provider_name: String,
     pub model_name: String,
     pub max_tokens: u32,
     pub system_prompt_override: Option<String>,
     pub spinner: u8,
+    #[allow(dead_code)]
     pub allow_unsafe: bool,
     pub quiet: bool,
     pub blind: bool,
     pub no_tools: bool,
     pub yolo: bool,
+    pub debug_level: u8,
     pub provider_settings: ProviderSettings,
 }
 
@@ -440,6 +651,7 @@ mod tests {
         env::remove_var("CMDIFY_BLIND");
         env::remove_var("CMDIFY_NO_TOOLS");
         env::remove_var("CMDIFY_YOLO");
+        env::remove_var("CMDIFY_DEBUG");
         env::remove_var("CMDIFY_CONFIG");
         env::set_var("XDG_CONFIG_HOME", "/nonexistent-cmdify-test-config");
         env::set_var("HOME", "/nonexistent-cmdify-test-home");
@@ -482,7 +694,7 @@ mod tests {
             env::set_var("CMDIFY_COMPLETIONS_KEY", "test-key");
             env::remove_var("CMDIFY_MAX_TOKENS");
             env::remove_var("CMDIFY_SYSTEM_PROMPT_FILE");
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.provider_name, "completions");
             assert_eq!(config.model_name, "llama3");
             assert_eq!(config.max_tokens, DEFAULT_MAX_TOKENS);
@@ -501,7 +713,7 @@ mod tests {
             env::remove_var("CMDIFY_COMPLETIONS_KEY");
             env::remove_var("CMDIFY_MAX_TOKENS");
             env::remove_var("CMDIFY_SYSTEM_PROMPT_FILE");
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert!(config.provider_settings.api_key.is_none());
         });
     }
@@ -526,7 +738,7 @@ mod tests {
             env::set_var("CMDIFY_MAX_TOKENS", "1024");
             env::remove_var("CMDIFY_COMPLETIONS_KEY");
             env::remove_var("CMDIFY_SYSTEM_PROMPT_FILE");
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.max_tokens, 1024);
         });
     }
@@ -568,7 +780,7 @@ mod tests {
             env::set_var("XDG_CONFIG_HOME", tmp.path());
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.provider_name, "completions");
             assert_eq!(config.model_name, "llama3");
             assert_eq!(config.max_tokens, DEFAULT_MAX_TOKENS);
@@ -594,7 +806,7 @@ mod tests {
             env::set_var("CMDIFY_MAX_TOKENS", "8192");
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.model_name, "from-env-model");
             assert_eq!(config.max_tokens, 8192);
         });
@@ -617,7 +829,7 @@ mod tests {
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
             env::remove_var("CMDIFY_MAX_TOKENS");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.max_tokens, 2048);
         });
     }
@@ -638,7 +850,7 @@ mod tests {
             env::set_var("XDG_CONFIG_HOME", tmp.path());
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(
                 config.system_prompt_override.as_deref(),
                 Some("/my/prompt.txt")
@@ -663,7 +875,7 @@ mod tests {
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
             env::set_var("CMDIFY_SYSTEM_PROMPT_FILE", "/from-env.txt");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(
                 config.system_prompt_override.as_deref(),
                 Some("/from-env.txt")
@@ -681,7 +893,7 @@ mod tests {
             env::set_var("CMDIFY_MODEL_NAME", "llama3");
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.provider_name, "completions");
         });
     }
@@ -716,7 +928,7 @@ mod tests {
             env::set_var("HOME", &home_dir);
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.model_name, "xdg-model");
         });
     }
@@ -741,7 +953,7 @@ mod tests {
             env::set_var("HOME", &home_dir);
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.model_name, "home-model");
         });
     }
@@ -765,13 +977,14 @@ mod tests {
     fn defaults_all_false() {
         with_env_lock(|| {
             setup_completions_env();
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.spinner, 1);
             assert!(!config.allow_unsafe);
             assert!(!config.quiet);
             assert!(!config.blind);
             assert!(!config.no_tools);
             assert!(!config.yolo);
+            assert_eq!(config.debug_level, 0);
         });
     }
 
@@ -780,7 +993,7 @@ mod tests {
         with_env_lock(|| {
             setup_completions_env();
             env::set_var("CMDIFY_SPINNER", "3");
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.spinner, 3);
         });
     }
@@ -802,7 +1015,7 @@ mod tests {
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
             env::remove_var("CMDIFY_SPINNER");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.spinner, 2);
         });
     }
@@ -824,7 +1037,7 @@ mod tests {
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
             env::set_var("CMDIFY_SPINNER", "3");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.spinner, 3);
         });
     }
@@ -838,7 +1051,7 @@ mod tests {
             env::set_var("CMDIFY_NO_TOOLS", "yes");
             env::set_var("CMDIFY_YOLO", "1");
             env::set_var("CMDIFY_UNSAFE", "true");
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert!(config.quiet);
             assert!(config.blind);
             assert!(config.no_tools);
@@ -854,7 +1067,7 @@ mod tests {
             env::set_var("CMDIFY_QUIET", "0");
             env::set_var("CMDIFY_BLIND", "false");
             env::set_var("CMDIFY_YOLO", "no");
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert!(!config.quiet);
             assert!(!config.blind);
             assert!(!config.yolo);
@@ -878,7 +1091,7 @@ mod tests {
             env::set_var("XDG_CONFIG_HOME", tmp.path());
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert!(config.quiet);
             assert!(config.yolo);
             assert!(!config.blind);
@@ -904,7 +1117,7 @@ mod tests {
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
             env::set_var("CMDIFY_YOLO", "1");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert!(config.yolo);
         });
     }
@@ -914,7 +1127,7 @@ mod tests {
         with_env_lock(|| {
             setup_completions_env();
             env::set_var("CMDIFY_YOLO", "maybe");
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert!(!config.yolo);
         });
     }
@@ -924,7 +1137,7 @@ mod tests {
         with_env_lock(|| {
             setup_completions_env();
             env::set_var("CMDIFY_SPINNER", "abc");
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.spinner, 1);
         });
     }
@@ -950,7 +1163,7 @@ mod tests {
             env::set_var("XDG_CONFIG_HOME", tmp.path());
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.spinner, 3);
             assert!(config.allow_unsafe);
             assert!(config.quiet);
@@ -976,7 +1189,7 @@ mod tests {
             .unwrap();
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-            let config = Config::from_env(Some(&config_path)).unwrap();
+            let (config, _sources) = Config::from_env(Some(&config_path)).unwrap();
             assert_eq!(config.model_name, "explicit-model");
         });
     }
@@ -1008,7 +1221,7 @@ mod tests {
             env::set_var("XDG_CONFIG_HOME", tmp.path());
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-            let config = Config::from_env(Some(&explicit_path)).unwrap();
+            let (config, _sources) = Config::from_env(Some(&explicit_path)).unwrap();
             assert_eq!(config.model_name, "explicit-model");
         });
     }
@@ -1042,7 +1255,7 @@ mod tests {
             env::set_var("CMDIFY_CONFIG", &config_path);
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-            let config = Config::from_env(None).unwrap();
+            let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.model_name, "env-path-model");
         });
     }
@@ -1073,7 +1286,7 @@ mod tests {
             env::set_var("CMDIFY_CONFIG", &env_path);
             env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-            let config = Config::from_env(Some(&cli_path)).unwrap();
+            let (config, _sources) = Config::from_env(Some(&cli_path)).unwrap();
             assert_eq!(config.model_name, "cli-path-model");
         });
     }
@@ -1087,6 +1300,252 @@ mod tests {
             assert!(result.is_err());
             let err = result.unwrap_err().to_string();
             assert!(err.contains("config file not found"));
+        });
+    }
+
+    #[test]
+    fn debug_from_env() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::set_var("CMDIFY_DEBUG", "1");
+            let (config, _sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.debug_level, 1);
+        });
+    }
+
+    #[test]
+    fn debug_from_env_false() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::set_var("CMDIFY_DEBUG", "0");
+            let (config, _sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.debug_level, 0);
+        });
+    }
+
+    #[test]
+    fn debug_from_config_file() {
+        with_env_lock(|| {
+            cleanup_vars();
+            let tmp = tempfile::tempdir().unwrap();
+            write_toml_config(
+                tmp.path(),
+                r#"
+                provider_name = "completions"
+                model_name = "llama3"
+                debug = true
+                "#,
+            );
+            env::set_var("XDG_CONFIG_HOME", tmp.path());
+            env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
+
+            let (config, _sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.debug_level, 1);
+        });
+    }
+
+    #[test]
+    fn debug_env_overrides_config_file() {
+        with_env_lock(|| {
+            cleanup_vars();
+            let tmp = tempfile::tempdir().unwrap();
+            write_toml_config(
+                tmp.path(),
+                r#"
+                provider_name = "completions"
+                model_name = "llama3"
+                debug = true
+                "#,
+            );
+            env::set_var("XDG_CONFIG_HOME", tmp.path());
+            env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
+            env::set_var("CMDIFY_DEBUG", "false");
+
+            let (config, _sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.debug_level, 0);
+        });
+    }
+
+    #[test]
+    fn debug_default_false() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::remove_var("CMDIFY_DEBUG");
+            let (config, _sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.debug_level, 0);
+        });
+    }
+
+    #[test]
+    fn sources_track_env_overrides() {
+        with_env_lock(|| {
+            cleanup_vars();
+            let tmp = tempfile::tempdir().unwrap();
+            write_toml_config(
+                tmp.path(),
+                r#"
+                provider_name = "completions"
+                model_name = "file-model"
+                max_tokens = 2048
+                "#,
+            );
+            env::set_var("XDG_CONFIG_HOME", tmp.path());
+            env::set_var("CMDIFY_PROVIDER_NAME", "completions");
+            env::set_var("CMDIFY_MODEL_NAME", "env-model");
+            env::set_var("CMDIFY_MAX_TOKENS", "8192");
+            env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
+
+            let (_config, sources) = Config::from_env(None).unwrap();
+            let model_src = sources.iter().find(|s| s.key == "model_name").unwrap();
+            assert_eq!(model_src.source, "env");
+            assert_eq!(model_src.value, "env-model");
+
+            let tokens_src = sources.iter().find(|s| s.key == "max_tokens").unwrap();
+            assert_eq!(tokens_src.source, "env");
+            assert_eq!(tokens_src.value, "8192");
+        });
+    }
+
+    #[test]
+    fn sources_track_file_origin() {
+        with_env_lock(|| {
+            cleanup_vars();
+            let tmp = tempfile::tempdir().unwrap();
+            write_toml_config(
+                tmp.path(),
+                r#"
+                provider_name = "completions"
+                model_name = "file-model"
+                "#,
+            );
+            env::set_var("XDG_CONFIG_HOME", tmp.path());
+            env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
+
+            let (_config, sources) = Config::from_env(None).unwrap();
+            let model_src = sources.iter().find(|s| s.key == "model_name").unwrap();
+            assert_eq!(model_src.source, "file");
+            assert_eq!(model_src.value, "file-model");
+
+            let provider_src = sources.iter().find(|s| s.key == "provider_name").unwrap();
+            assert_eq!(provider_src.source, "file");
+
+            let url_src = sources.iter().find(|s| s.key == "base_url").unwrap();
+            assert_eq!(url_src.source, "env");
+        });
+    }
+
+    #[test]
+    fn sources_omit_defaults() {
+        with_env_lock(|| {
+            setup_completions_env();
+            let (_config, sources) = Config::from_env(None).unwrap();
+            assert!(!sources.iter().any(|s| s.key == "max_tokens"));
+            assert!(!sources.iter().any(|s| s.key == "quiet"));
+            assert!(!sources.iter().any(|s| s.key == "blind"));
+            assert!(!sources.iter().any(|s| s.key == "yolo"));
+            assert!(!sources.iter().any(|s| s.key == "no_tools"));
+            assert!(!sources.iter().any(|s| s.key == "allow_unsafe"));
+            assert!(!sources.iter().any(|s| s.key == "debug"));
+        });
+    }
+
+    #[test]
+    fn sources_mask_api_key() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::set_var("CMDIFY_COMPLETIONS_KEY", "super-secret-key");
+            let (_config, sources) = Config::from_env(None).unwrap();
+            let key_src = sources.iter().find(|s| s.key == "api_key").unwrap();
+            assert_eq!(key_src.value, "***");
+            assert_eq!(key_src.source, "env");
+        });
+    }
+
+    #[test]
+    fn debug_from_env_level_2() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::set_var("CMDIFY_DEBUG", "2");
+            let (config, sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.debug_level, 2);
+            let debug_src = sources.iter().find(|s| s.key == "debug").unwrap();
+            assert_eq!(debug_src.value, "2");
+            assert_eq!(debug_src.source, "env");
+        });
+    }
+
+    #[test]
+    fn debug_from_env_true_maps_to_level_1() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::set_var("CMDIFY_DEBUG", "true");
+            let (config, sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.debug_level, 1);
+            let debug_src = sources.iter().find(|s| s.key == "debug").unwrap();
+            assert_eq!(debug_src.value, "1");
+            assert_eq!(debug_src.source, "env");
+        });
+    }
+
+    #[test]
+    fn debug_source_omitted_when_level_0() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::set_var("CMDIFY_DEBUG", "false");
+            let (_config, sources) = Config::from_env(None).unwrap();
+            assert!(!sources.iter().any(|s| s.key == "debug"));
+        });
+    }
+
+    #[test]
+    fn debug_config_file_maps_true_to_level_1_source() {
+        with_env_lock(|| {
+            cleanup_vars();
+            let tmp = tempfile::tempdir().unwrap();
+            write_toml_config(
+                tmp.path(),
+                r#"
+                provider_name = "completions"
+                model_name = "llama3"
+                debug = true
+                "#,
+            );
+            env::set_var("XDG_CONFIG_HOME", tmp.path());
+            env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
+
+            let (_config, sources) = Config::from_env(None).unwrap();
+            let debug_src = sources.iter().find(|s| s.key == "debug").unwrap();
+            assert_eq!(debug_src.value, "1");
+            assert_eq!(debug_src.source, "file");
+        });
+    }
+
+    #[test]
+    fn debug_precedence_cli_max_with_env() {
+        let env_level: u8 = 1;
+        let cli_level: u8 = 2;
+        assert_eq!(std::cmp::max(env_level, cli_level), 2);
+
+        let env_level: u8 = 2;
+        let cli_level: u8 = 0;
+        assert_eq!(std::cmp::max(env_level, cli_level), 2);
+
+        let env_level: u8 = 0;
+        let cli_level: u8 = 1;
+        assert_eq!(std::cmp::max(env_level, cli_level), 1);
+
+        let env_level: u8 = 2;
+        let cli_level: u8 = 2;
+        assert_eq!(std::cmp::max(env_level, cli_level), 2);
+    }
+
+    #[test]
+    fn invalid_debug_env_uses_default() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::set_var("CMDIFY_DEBUG", "3");
+            let (config, _sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.debug_level, 0);
         });
     }
 }

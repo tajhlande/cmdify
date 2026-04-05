@@ -53,6 +53,13 @@
   - `-s N` or `--spinner N` to select spinner style (1, 2, or 3)
   - `-u` or `--unsafe` to allow potentially unsafe commands (bypasses safety check)
 
+## Coding Guidelines
+
+- Use idiomatic Rust where possible.  Where not possible, add comments explaining why the code differs from idiomatic Rust.
+- Use safe implementation strategies to prevent injection attacks, memory leaks, and crashes. 
+- Avoid memory allocation bloat where it is easily avoidable, but don't over-complicate the code to do so. 
+- Keep code readable and formatted for readability.
+
 ## Build process
 
 ## Deployments

@@ -1,4 +1,5 @@
 pub mod find_command;
+// TODO(Phase 3): Add ask_user module for interactive clarification tool
 
 use async_trait::async_trait;
 
@@ -8,6 +9,9 @@ use crate::provider::ToolDefinition;
 
 pub use find_command::FindCommandTool;
 
+// Intentionally kept as a struct rather than a type alias so that future tools
+// (e.g., ask_user in Phase 3) can add fields like metadata or timing without
+// changing the return type signature across the Tool trait.
 #[derive(Debug)]
 pub struct ToolOutput {
     pub content: String,
@@ -33,7 +37,7 @@ impl ToolRegistry {
         let mut tools: Vec<Box<dyn Tool>> = Vec::new();
 
         if !no_tools && !blind {
-            tools.push(Box::new(FindCommandTool));
+            tools.push(Box::new(FindCommandTool::default()));
         }
 
         Self { tools }

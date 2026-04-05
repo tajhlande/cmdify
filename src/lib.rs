@@ -1,5 +1,6 @@
 pub mod cli;
 pub mod config;
+pub mod debug;
 pub mod error;
 pub mod logger;
 pub mod orchestrator;

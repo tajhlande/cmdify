@@ -24,6 +24,14 @@ pub struct Cli {
     pub yolo: bool,
 
     #[arg(
+        short = 'd',
+        long = "debug",
+        action = clap::ArgAction::Count,
+        help = "Enable debug logging to stderr (-d basic, -dd verbose with JSON bodies)"
+    )]
+    pub debug: u8,
+
+    #[arg(
         short = 's',
         long = "spinner",
         value_name = "N",
@@ -89,6 +97,7 @@ mod tests {
         let cli = Cli::try_parse_from(["cmdify", "-y", "find files"]).unwrap();
         assert!(cli.yolo);
         assert!(!cli.no_tools);
+        assert_eq!(cli.debug, 0);
     }
 
     #[test]
@@ -140,6 +149,7 @@ mod tests {
         assert!(help.contains("yolo"));
         assert!(help.contains("spinner"));
         assert!(help.contains("config"));
+        assert!(help.contains("debug"));
     }
 
     #[test]
@@ -164,5 +174,29 @@ mod tests {
     fn config_default_none() {
         let cli = Cli::try_parse_from(["cmdify", "test"]).unwrap();
         assert!(cli.config.is_none());
+    }
+
+    #[test]
+    fn parse_debug_short() {
+        let cli = Cli::try_parse_from(["cmdify", "-d", "find files"]).unwrap();
+        assert_eq!(cli.debug, 1);
+    }
+
+    #[test]
+    fn parse_debug_long() {
+        let cli = Cli::try_parse_from(["cmdify", "--debug", "find files"]).unwrap();
+        assert_eq!(cli.debug, 1);
+    }
+
+    #[test]
+    fn parse_debug_verbose() {
+        let cli = Cli::try_parse_from(["cmdify", "-dd", "find files"]).unwrap();
+        assert_eq!(cli.debug, 2);
+    }
+
+    #[test]
+    fn debug_default_zero() {
+        let cli = Cli::try_parse_from(["cmdify", "find files"]).unwrap();
+        assert_eq!(cli.debug, 0);
     }
 }

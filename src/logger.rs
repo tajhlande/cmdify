@@ -1,6 +1,6 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::SystemTime;
 
@@ -50,7 +50,7 @@ impl CmdifyLogger {
         state_home.join("cmdify").join("history.log")
     }
 
-    fn open_log_file(path: &PathBuf) -> Option<File> {
+    fn open_log_file(path: &Path) -> Option<File> {
         if let Some(parent) = path.parent() {
             let _ = fs::create_dir_all(parent);
         }
@@ -61,67 +61,79 @@ impl CmdifyLogger {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn with_env_lock<F: FnOnce()>(f: F) {
+        let _lock = ENV_LOCK.lock().unwrap();
+        f();
+    }
 
     #[test]
     fn log_file_path_with_xdg_state_home() {
-        std::env::remove_var("XDG_STATE_HOME");
-        std::env::set_var("HOME", "/tmp/test-home");
-        let path = CmdifyLogger::log_file_path();
-        assert!(path.ends_with(".local/state/cmdify/history.log"));
-        assert!(path.starts_with("/tmp/test-home"));
-        std::env::remove_var("HOME");
+        with_env_lock(|| {
+            std::env::remove_var("XDG_STATE_HOME");
+            std::env::set_var("HOME", "/tmp/test-home");
+            let path = CmdifyLogger::log_file_path();
+            assert!(path.ends_with(".local/state/cmdify/history.log"));
+            assert!(path.starts_with("/tmp/test-home"));
+        });
     }
 
     #[test]
     fn log_file_path_with_xdg_override() {
-        std::env::set_var("XDG_STATE_HOME", "/tmp/test-state");
-        std::env::remove_var("HOME");
-        let path = CmdifyLogger::log_file_path();
-        assert_eq!(path, PathBuf::from("/tmp/test-state/cmdify/history.log"));
-        std::env::remove_var("XDG_STATE_HOME");
+        with_env_lock(|| {
+            std::env::set_var("XDG_STATE_HOME", "/tmp/test-state");
+            std::env::remove_var("HOME");
+            let path = CmdifyLogger::log_file_path();
+            assert_eq!(path, PathBuf::from("/tmp/test-state/cmdify/history.log"));
+        });
     }
 
     #[test]
     fn new_logger_creates_file() {
-        let dir = tempfile::tempdir().unwrap();
-        std::env::set_var("XDG_STATE_HOME", dir.path());
-        std::env::remove_var("HOME");
+        with_env_lock(|| {
+            let dir = tempfile::tempdir().unwrap();
+            std::env::set_var("XDG_STATE_HOME", dir.path());
+            std::env::remove_var("HOME");
 
-        let logger = CmdifyLogger::new("test-model", "completions");
-        logger.log("output", "ls -la");
+            let logger = CmdifyLogger::new("test-model", "completions");
+            logger.log("output", "ls -la");
 
-        let log_path = dir.path().join("cmdify").join("history.log");
-        assert!(log_path.exists());
+            let log_path = dir.path().join("cmdify").join("history.log");
+            assert!(log_path.exists());
 
-        let contents = std::fs::read_to_string(&log_path).unwrap();
-        assert!(contents.contains("[output] [completions/test-model] ls -la"));
-        assert!(contents.contains("T"));
-
-        std::env::remove_var("XDG_STATE_HOME");
+            let contents = std::fs::read_to_string(&log_path).unwrap();
+            assert!(contents.contains("[output] [completions/test-model] ls -la"));
+            assert!(contents.contains("T"));
+        });
     }
 
     #[test]
     fn multiple_entries_append() {
-        let dir = tempfile::tempdir().unwrap();
-        std::env::set_var("XDG_STATE_HOME", dir.path());
-        std::env::remove_var("HOME");
+        with_env_lock(|| {
+            let dir = tempfile::tempdir().unwrap();
+            std::env::set_var("XDG_STATE_HOME", dir.path());
+            std::env::remove_var("HOME");
 
-        let logger = CmdifyLogger::new("llama3", "ollama");
-        logger.log("find_command", "command -v fd");
-        logger.log("find_command", "command -v rg");
+            let logger = CmdifyLogger::new("llama3", "ollama");
+            logger.log("find_command", "command -v fd");
+            logger.log("find_command", "command -v rg");
 
-        let log_path = dir.path().join("cmdify").join("history.log");
-        let contents = std::fs::read_to_string(&log_path).unwrap();
-        let lines: Vec<&str> = contents.lines().collect();
-        assert_eq!(lines.len(), 2);
-        assert!(lines[0].contains("command -v fd"));
-        assert!(lines[1].contains("command -v rg"));
-
-        std::env::remove_var("XDG_STATE_HOME");
+            let log_path = dir.path().join("cmdify").join("history.log");
+            let contents = std::fs::read_to_string(&log_path).unwrap();
+            let lines: Vec<&str> = contents.lines().collect();
+            assert_eq!(lines.len(), 2);
+            assert!(lines[0].contains("command -v fd"));
+            assert!(lines[1].contains("command -v rg"));
+        });
     }
 
     #[test]
     fn logger_works_without_xdg_or_home() {
-        let _ = CmdifyLogger::new("test", "test");
+        with_env_lock(|| {
+            let _ = CmdifyLogger::new("test", "test");
+        });
     }
 }

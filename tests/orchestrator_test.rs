@@ -18,6 +18,7 @@ fn make_config(base_url: &str) -> Config {
         blind: false,
         no_tools: false,
         yolo: false,
+        debug_level: 0,
         provider_settings: ProviderSettings {
             api_key: None,
             base_url: base_url.into(),
@@ -198,4 +199,38 @@ async fn provider_error_propagates() {
 
     let result = orchestrator::run("test", &config, None).await;
     assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn max_iterations_exceeded() {
+    let server = MockServer::start().await;
+    let config = make_config(&server.uri());
+
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": "call_loop",
+                        "type": "function",
+                        "function": { "name": "find_command", "arguments": "{\"command\":\"ls\"}" }
+                    }]
+                },
+                "finish_reason": "tool_calls"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let result = orchestrator::run("keep asking", &config, None).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("tool call loop exceeded maximum iterations"),
+        "expected max iterations error, got: {}",
+        err
+    );
 }

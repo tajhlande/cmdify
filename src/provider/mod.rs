@@ -69,6 +69,9 @@ pub trait Provider: Send + Sync {
     fn name(&self) -> &str;
 }
 
+// TODO(Phase 4-6): Add provider implementations for openai, anthropic, gemini,
+// openrouter, huggingface, zai, minimax, qwen, kimi, mistral, ollama, responses.
+// Currently only the completions provider is implemented (Phase 1).
 pub fn create_provider(config: &Config) -> Result<Box<dyn Provider>> {
     match config.provider_name.as_str() {
         "completions" => Ok(Box::new(completions::CompletionsProvider::new(config)?)),

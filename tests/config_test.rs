@@ -38,7 +38,7 @@ fn write_toml_config(dir: &Path, content: &str) {
 fn full_completions_config() {
     with_env_lock(|| {
         setup_completions_env();
-        let config = cmdify::config::Config::from_env(None).unwrap();
+        let (config, _sources) = cmdify::config::Config::from_env(None).unwrap();
         assert_eq!(config.provider_name, "completions");
         assert_eq!(config.model_name, "test-model");
         assert_eq!(config.max_tokens, 16384);
@@ -52,7 +52,7 @@ fn completions_config_with_key() {
     with_env_lock(|| {
         setup_completions_env();
         env::set_var("CMDIFY_COMPLETIONS_KEY", "my-secret-key");
-        let config = cmdify::config::Config::from_env(None).unwrap();
+        let (config, _sources) = cmdify::config::Config::from_env(None).unwrap();
         assert_eq!(
             config.provider_settings.api_key.as_deref(),
             Some("my-secret-key")
@@ -117,7 +117,7 @@ fn config_file_provides_defaults() {
         env::set_var("XDG_CONFIG_HOME", tmp.path());
         env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-        let config = cmdify::config::Config::from_env(None).unwrap();
+        let (config, _sources) = cmdify::config::Config::from_env(None).unwrap();
         assert_eq!(config.provider_name, "completions");
         assert_eq!(config.model_name, "file-model");
         assert_eq!(config.max_tokens, 16384);
@@ -143,7 +143,7 @@ fn env_var_overrides_config_file() {
         env::set_var("CMDIFY_MAX_TOKENS", "8192");
         env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-        let config = cmdify::config::Config::from_env(None).unwrap();
+        let (config, _sources) = cmdify::config::Config::from_env(None).unwrap();
         assert_eq!(config.model_name, "env-model");
         assert_eq!(config.max_tokens, 8192);
     });
@@ -165,7 +165,7 @@ fn config_file_max_tokens() {
         env::set_var("XDG_CONFIG_HOME", tmp.path());
         env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-        let config = cmdify::config::Config::from_env(None).unwrap();
+        let (config, _sources) = cmdify::config::Config::from_env(None).unwrap();
         assert_eq!(config.max_tokens, 2048);
     });
 }
@@ -186,7 +186,7 @@ fn config_file_system_prompt() {
         env::set_var("XDG_CONFIG_HOME", tmp.path());
         env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
 
-        let config = cmdify::config::Config::from_env(None).unwrap();
+        let (config, _sources) = cmdify::config::Config::from_env(None).unwrap();
         assert_eq!(
             config.system_prompt_override.as_deref(),
             Some("/custom/prompt.txt")

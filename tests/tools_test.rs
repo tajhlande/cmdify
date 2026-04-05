@@ -1,8 +1,12 @@
 use cmdify::tools::{find_command::FindCommandTool, Tool};
 
+fn make_tool() -> FindCommandTool {
+    FindCommandTool::default()
+}
+
 #[tokio::test]
 async fn find_command_sh() {
-    let tool = FindCommandTool;
+    let tool = make_tool();
     let result = tool
         .execute(serde_json::json!({"command": "sh"}), None)
         .await
@@ -13,7 +17,7 @@ async fn find_command_sh() {
 
 #[tokio::test]
 async fn find_command_ls() {
-    let tool = FindCommandTool;
+    let tool = make_tool();
     let result = tool
         .execute(serde_json::json!({"command": "ls"}), None)
         .await
@@ -24,7 +28,7 @@ async fn find_command_ls() {
 
 #[tokio::test]
 async fn find_command_cat() {
-    let tool = FindCommandTool;
+    let tool = make_tool();
     let result = tool
         .execute(serde_json::json!({"command": "cat"}), None)
         .await
@@ -35,7 +39,7 @@ async fn find_command_cat() {
 
 #[tokio::test]
 async fn find_command_nonexistent() {
-    let tool = FindCommandTool;
+    let tool = make_tool();
     let result = tool
         .execute(
             serde_json::json!({"command": "nonexistent_cmd_integration_test_abc123"}),

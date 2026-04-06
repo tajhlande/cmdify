@@ -15,7 +15,7 @@ This plan breaks the full `cmdify` design into incremental, testable phases. Eac
 | 1 | ✅ | Minimal MVP | `/completions` provider, no tools | Working binary, basic UX, env config |
 | 2 | ✅ | `find_command` Tool | Add command discovery tool | Tool trait, registry, tool call loop |
 | 3 | ✅ | `ask_user` Tool | Add interactive clarification tool | Interactive stdin/stderr UX |
-| 4 | ⬜ | Tool Levels | Numbered tool level system, `--list-tools` | Progressive tool disclosure, config |
+| 4 | ✅ | Tool Levels | Numbered tool level system, `--list-tools` | Progressive tool disclosure, config |
 | 5 | 📝 | Safety Check | Modular prompt, LLM guidance, semantic checks | Three-layer safety, system prompt split, shlex tokenization |
 | 6 | ⬜ | OpenRouter & HuggingFace | Two more OpenAI-compat providers | Named provider pattern, shared completions impl |
 | 7 | ⬜ | Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats | Three new providers, AuthStyle::QueryParam |

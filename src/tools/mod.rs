@@ -33,10 +33,14 @@ pub struct ToolRegistry {
 }
 
 impl ToolRegistry {
-    pub fn new(quiet: bool, blind: bool, no_tools: bool) -> Self {
+    pub fn new(tool_level: u8, quiet: bool, blind: bool, no_tools: bool) -> Self {
+        if no_tools {
+            return Self { tools: Vec::new() };
+        }
+
         let mut tools: Vec<Box<dyn Tool>> = Vec::new();
 
-        if !no_tools {
+        if tool_level >= 1 {
             if !quiet {
                 tools.push(Box::new(AskUserTool::default()));
             }
@@ -79,7 +83,7 @@ mod tests {
 
     #[test]
     fn registry_with_both_tools() {
-        let registry = ToolRegistry::new(false, false, false);
+        let registry = ToolRegistry::new(1, false, false, false);
         let defs = registry.definitions();
         assert_eq!(defs.len(), 2);
         let names: Vec<&str> = defs.iter().map(|d| d.name.as_str()).collect();
@@ -90,28 +94,28 @@ mod tests {
 
     #[test]
     fn registry_with_quiet_flag() {
-        let registry = ToolRegistry::new(true, false, false);
+        let registry = ToolRegistry::new(1, true, false, false);
         assert_eq!(registry.definitions().len(), 1);
         assert_eq!(registry.definitions()[0].name, "find_command");
     }
 
     #[test]
     fn registry_with_blind_flag() {
-        let registry = ToolRegistry::new(false, true, false);
+        let registry = ToolRegistry::new(1, false, true, false);
         assert_eq!(registry.definitions().len(), 1);
         assert_eq!(registry.definitions()[0].name, "ask_user");
     }
 
     #[test]
     fn registry_with_no_tools_flag() {
-        let registry = ToolRegistry::new(false, false, true);
+        let registry = ToolRegistry::new(1, false, false, true);
         assert!(registry.is_empty());
         assert!(registry.definitions().is_empty());
     }
 
     #[tokio::test]
     async fn execute_unknown_tool_errors() {
-        let registry = ToolRegistry::new(false, false, false);
+        let registry = ToolRegistry::new(1, false, false, false);
         let result = registry
             .execute("nonexistent", serde_json::json!({}), None, None)
             .await;
@@ -122,19 +126,19 @@ mod tests {
 
     #[test]
     fn registry_all_flags_set() {
-        let registry = ToolRegistry::new(true, true, true);
+        let registry = ToolRegistry::new(1, true, true, true);
         assert!(registry.is_empty());
     }
 
     #[test]
     fn registry_quiet_and_blind() {
-        let registry = ToolRegistry::new(true, true, false);
+        let registry = ToolRegistry::new(1, true, true, false);
         assert!(registry.is_empty());
     }
 
     #[tokio::test]
     async fn execute_find_command_directly() {
-        let registry = ToolRegistry::new(false, false, false);
+        let registry = ToolRegistry::new(1, false, false, false);
         let result = registry
             .execute(
                 "find_command",
@@ -148,7 +152,7 @@ mod tests {
 
     #[test]
     fn ask_user_excluded_when_quiet() {
-        let registry = ToolRegistry::new(true, false, false);
+        let registry = ToolRegistry::new(1, true, false, false);
         let defs = registry.definitions();
         let names: Vec<&str> = defs.iter().map(|d| d.name.as_str()).collect();
         assert!(!names.contains(&"ask_user"));
@@ -157,10 +161,36 @@ mod tests {
 
     #[test]
     fn find_command_excluded_when_blind() {
-        let registry = ToolRegistry::new(false, true, false);
+        let registry = ToolRegistry::new(1, false, true, false);
         let defs = registry.definitions();
         let names: Vec<&str> = defs.iter().map(|d| d.name.as_str()).collect();
         assert!(names.contains(&"ask_user"));
         assert!(!names.contains(&"find_command"));
+    }
+
+    #[test]
+    fn level_0_empty_registry() {
+        let registry = ToolRegistry::new(0, false, false, false);
+        assert!(registry.is_empty());
+    }
+
+    #[test]
+    fn level_2_same_as_level_1() {
+        let r1 = ToolRegistry::new(1, false, false, false);
+        let r2 = ToolRegistry::new(2, false, false, false);
+        assert_eq!(r1.definitions().len(), r2.definitions().len());
+    }
+
+    #[test]
+    fn level_2_plus_blind() {
+        let registry = ToolRegistry::new(2, false, true, false);
+        assert_eq!(registry.definitions().len(), 1);
+        assert_eq!(registry.definitions()[0].name, "ask_user");
+    }
+
+    #[test]
+    fn level_3_plus_no_tools() {
+        let registry = ToolRegistry::new(3, false, false, true);
+        assert!(registry.is_empty());
     }
 }

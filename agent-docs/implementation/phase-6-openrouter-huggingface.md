@@ -7,6 +7,7 @@ Add two named providers that use the OpenAI Completions wire format. This phase 
 ## Scope
 
 - Refactor `completions.rs` into a shared module (common request/response logic)
+- Set `User-Agent` header on all provider HTTP requests: `cmdify/<version>` (e.g. `cmdify/0.4.0`)
 - Create `OpenRouterProvider` as a thin struct wrapping shared completions logic
 - Create `HuggingFaceProvider` as a thin struct wrapping shared completions logic
 - Update factory function
@@ -28,7 +29,19 @@ tests/
 
 ## Implementation Steps
 
-### 6.1 Refactor shared completions logic
+### 6.1 User-Agent header
+
+All provider HTTP clients must set a `User-Agent` header identifying cmdify and its version. The version should come from the `CARGO_PKG_VERSION` env variable (set at compile time by cargo) or the `clap::Parser` version accessor.
+
+```rust
+// In shared completions request builder (and any future provider HTTP clients)
+let user_agent = format!("cmdify/{}", env!("CARGO_PKG_VERSION"));
+request_builder = request_builder.header("User-Agent", &user_agent);
+```
+
+This applies to all providers, not just OpenRouter and HuggingFace. Since this phase refactors completions into shared logic, it's the natural place to add it. Existing providers (`completions`, `responses`) should also be updated.
+
+### 6.2 Refactor shared completions logic
 
 Extract the core of `completions.rs` into reusable internal functions:
 
@@ -49,7 +62,7 @@ pub(crate) fn format_completions_tools(tools: &[ToolDefinition]) -> serde_json::
 pub(crate) fn parse_completions_response(body: &serde_json::Value) -> Result<ProviderResponse> { ... }
 ```
 
-### 6.2 OpenRouter provider (`src/provider/openrouter.rs`)
+### 6.3 OpenRouter provider (`src/provider/openrouter.rs`)
 
 Thin struct:
 
@@ -68,7 +81,7 @@ pub struct OpenRouterProvider {
 - Delegates to `send_completions_request()`
 - Additional header: `HTTP-Referer` for OpenRouter's ranking (optional, can add later)
 
-### 6.3 HuggingFace provider (`src/provider/huggingface.rs`)
+### 6.4 HuggingFace provider (`src/provider/huggingface.rs`)
 
 Thin struct, same pattern:
 
@@ -86,12 +99,12 @@ pub struct HuggingFaceProvider {
 - Auth header: `Authorization: Bearer {HUGGINGFACE_API_KEY}`
 - Delegates to `send_completions_request()`
 
-### 6.4 Config and factory updates
+### 6.5 Config and factory updates
 
 - `config.rs`: add match arms for `"openrouter"` and `"huggingface"` in `ProviderSettings::from_env()`
 - `provider/mod.rs`: add match arms in `create_provider()`
 
-### 6.5 API key required for named providers
+### 6.6 API key required for named providers
 
 Unlike the generic `completions` provider (where the key is optional for local models), named providers like OpenRouter and HuggingFace require their API key. The `ProviderSettings::header()` constructor should error if the key env var is missing.
 
@@ -112,4 +125,5 @@ Unlike the generic `completions` provider (where the key is optional for local m
 - [ ] Both providers support tools (find_command, ask_user) via shared completions logic
 - [ ] Missing API key produces clear error message
 - [ ] Base URL can be overridden via `OPENROUTER_BASE_URL` / `HUGGINGFACE_BASE_URL`
+- [ ] All provider HTTP requests include `User-Agent: cmdify/<version>` header
 - [ ] `make check` passes

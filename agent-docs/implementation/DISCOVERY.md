@@ -1,0 +1,11 @@
+# Discoveries
+
+- TTY vs non-interactive stdin: Tests that call ask_user.execute() hang in interactive terminals but pass instantly in non-interactive shells (like the agent's). Solution: extract a pure read_user_choice<R: BufRead>() function tested with Cursor::new(...), and never call .execute() from tests.
+- Triple Result nesting: tokio::time::timeout(spawn_blocking(io_result)) produces Result<Result<Result<T, io::Error>, JoinError>, Elapsed> — three levels of Result, not two. This was a subtle bug during refactoring.
+- spawn_blocking requires 'static: Borrowed references (like Vec<&str>) can't be sent into spawn_blocking — must clone to owned (Vec<String>).
+- Binary size: cargo bloat --release --crates revealed rustls+ring (21%), reqwest (14%), clap (9%), toml_edit (6%) as the biggest contributors. Adding [profile.release] strip=true, lto=true, opt-level="z", codegen-units=1 to Cargo.toml reduced the binary from 5.3MB to 2.2MB.
+- Safety approach decision: The user chose a three-layer defense: (1) modular system prompt with LLM self-classification guidance, (2) deterministic tokenize-then-analyze semantic checks via shlex, (3) --unsafe opt-out. No structured output markers (spoofable). The semantic checker is intentionally independent of conversation history.
+- command_help design: Uses optional pattern parameter for grep filtering (--help 2>&1 | grep -i <pattern>), falls back to man via col -b, with 80-line hard truncation cap. Kept at Level 2.
+- list_directory split: Separated into Level 1 list_current_directory (cwd only, no path param) and Level 2 list_any_directory (user-specified path) to keep each tool single-purpose.
+- `String::from_utf8_lossy()` returns `Cow<str>` borrowing from the input `Vec<u8>`. Matching on the result inside a larger expression (e.g., within `match` on a `Command::output()`) creates lifetime errors because both the `Cow` and the borrowed `&str` are dropped at the end of the inner scope. Fix: bind to a `let` and call `.to_string()` before returning.
+- `std::sync::Mutex` poisoning cascades across tests sharing the same static lock. If one test panics while holding the lock, all subsequent `lock().unwrap()` calls fail with `PoisonError`. Resilient pattern: `match lock { Ok(guard) => { let _g = guard; ... }, Err(_) => return }` — skips the test rather than propagating the panic.

@@ -61,6 +61,16 @@
 - Keep code readable and formatted for readability.
 - Avoid repeated boilerplate code. Create helpers as the need for or presence of boilerplate repetition is determined.
 
+## Design and implementation 
+
+- Agent documentation can be found in /agent-docs.
+- Design files are in /agent-docs/design.
+- The master design document is in /agent-docs/design/DESIGN.md .
+- Implementation plans are in /agent-docs/implementation. 
+- The master implementation plan is in /agent-docs/implementation/PLAN.md .
+- Agent discoveries shouhld be written to /agent-docs/implementation/DISCOVERY.md .
+- Previous implementation phase review notes are in /agent-docs/review.
+
 ## Build process
 
 ## Deployments

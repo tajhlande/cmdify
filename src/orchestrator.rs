@@ -16,7 +16,12 @@ pub async fn run(
 ) -> Result<String, Error> {
     let system_prompt = crate::prompt::load_system_prompt(config)?;
 
-    let registry = ToolRegistry::new(config.quiet, config.blind, config.no_tools);
+    let registry = ToolRegistry::new(
+        config.tool_level,
+        config.quiet,
+        config.blind,
+        config.no_tools,
+    );
     let tool_definitions = registry.definitions();
     let provider = create_provider(config)?;
 

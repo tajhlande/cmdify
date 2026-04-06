@@ -7,14 +7,37 @@ use clap::Parser;
     version
 )]
 pub struct Cli {
+    #[arg(
+        short = 'c',
+        long = "config",
+        value_name = "FILE",
+        help = "Path to config file (must exist)"
+    )]
+    pub config: Option<std::path::PathBuf>,
+
+    #[arg(
+        short = 't',
+        long = "tools",
+        value_name = "N",
+        help = "Tool level: 0 (none), 1 (core, default), 2 (local), 3 (system)",
+        conflicts_with = "no_tools"
+    )]
+    pub tool_level: Option<u8>,
+
+    #[arg(
+        long = "list-tools",
+        help = "List all available tools by level and exit"
+    )]
+    pub list_tools: bool,
+
+    #[arg(short = 'n', long = "no-tools", help = "Disable all tools", conflicts_with_all = ["quiet", "blind"])]
+    pub no_tools: bool,
+
     #[arg(short = 'q', long = "quiet", help = "Disable the ask_user tool")]
     pub quiet: bool,
 
     #[arg(short = 'b', long = "blind", help = "Disable the find_command tool")]
     pub blind: bool,
-
-    #[arg(short = 'n', long = "no-tools", help = "Disable all tools", conflicts_with_all = ["quiet", "blind"])]
-    pub no_tools: bool,
 
     #[arg(
         short = 'y',
@@ -38,14 +61,6 @@ pub struct Cli {
         help = "Spinner style: 1 (default bar), 2 (braille), or 3 (dots)"
     )]
     pub spinner: Option<u8>,
-
-    #[arg(
-        short = 'c',
-        long = "config",
-        value_name = "FILE",
-        help = "Path to config file (must exist)"
-    )]
-    pub config: Option<std::path::PathBuf>,
 
     #[arg(
         trailing_var_arg = true,
@@ -198,5 +213,41 @@ mod tests {
     fn debug_default_zero() {
         let cli = Cli::try_parse_from(["cmdify", "find files"]).unwrap();
         assert_eq!(cli.debug, 0);
+    }
+
+    #[test]
+    fn parse_tool_level_short() {
+        let cli = Cli::try_parse_from(["cmdify", "-t", "0", "find files"]).unwrap();
+        assert_eq!(cli.tool_level, Some(0));
+    }
+
+    #[test]
+    fn parse_tool_level_2() {
+        let cli = Cli::try_parse_from(["cmdify", "-t", "2", "find files"]).unwrap();
+        assert_eq!(cli.tool_level, Some(2));
+    }
+
+    #[test]
+    fn parse_tool_level_long() {
+        let cli = Cli::try_parse_from(["cmdify", "--tools", "3", "find files"]).unwrap();
+        assert_eq!(cli.tool_level, Some(3));
+    }
+
+    #[test]
+    fn tool_level_default_none() {
+        let cli = Cli::try_parse_from(["cmdify", "find files"]).unwrap();
+        assert_eq!(cli.tool_level, None);
+    }
+
+    #[test]
+    fn parse_list_tools() {
+        let cli = Cli::try_parse_from(["cmdify", "--list-tools"]).unwrap();
+        assert!(cli.list_tools);
+    }
+
+    #[test]
+    fn list_tools_default_false() {
+        let cli = Cli::try_parse_from(["cmdify", "find files"]).unwrap();
+        assert!(!cli.list_tools);
     }
 }

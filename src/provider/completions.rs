@@ -255,6 +255,7 @@ mod tests {
             no_tools: false,
             yolo: false,
             debug_level: 0,
+            tool_level: 1,
             provider_settings: crate::config::ProviderSettings {
                 api_key: api_key.map(|k| k.into()),
                 base_url: base_url.into(),

@@ -271,6 +271,7 @@ struct FileConfig {
     no_tools: Option<bool>,
     yolo: Option<bool>,
     debug: Option<bool>,
+    tool_level: Option<u8>,
     #[serde(default)]
     providers: ProviderUrls,
 }
@@ -395,6 +396,15 @@ impl Config {
         )
         .unwrap_or(false);
 
+        let tool_level = resolve_u8(
+            "CMDIFY_TOOL_LEVEL",
+            file_config.as_ref().and_then(|f| f.tool_level),
+            &mut sources,
+            "tool_level",
+        )
+        .unwrap_or(1)
+        .min(3);
+
         let yolo = resolve_bool(
             "CMDIFY_YOLO",
             file_config.as_ref().and_then(|f| f.yolo),
@@ -443,6 +453,7 @@ impl Config {
                 no_tools,
                 yolo,
                 debug_level,
+                tool_level,
                 provider_settings,
             },
             sources,
@@ -622,6 +633,7 @@ pub struct Config {
     pub no_tools: bool,
     pub yolo: bool,
     pub debug_level: u8,
+    pub tool_level: u8,
     pub provider_settings: ProviderSettings,
 }
 
@@ -651,6 +663,7 @@ mod tests {
         env::remove_var("CMDIFY_BLIND");
         env::remove_var("CMDIFY_NO_TOOLS");
         env::remove_var("CMDIFY_YOLO");
+        env::remove_var("CMDIFY_TOOL_LEVEL");
         env::remove_var("CMDIFY_DEBUG");
         env::remove_var("CMDIFY_CONFIG");
         env::set_var("XDG_CONFIG_HOME", "/nonexistent-cmdify-test-config");
@@ -985,6 +998,7 @@ mod tests {
             assert!(!config.no_tools);
             assert!(!config.yolo);
             assert_eq!(config.debug_level, 0);
+            assert_eq!(config.tool_level, 1);
         });
     }
 
@@ -1546,6 +1560,85 @@ mod tests {
             env::set_var("CMDIFY_DEBUG", "3");
             let (config, _sources) = Config::from_env(None).unwrap();
             assert_eq!(config.debug_level, 0);
+        });
+    }
+
+    #[test]
+    fn tool_level_from_env() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::set_var("CMDIFY_TOOL_LEVEL", "2");
+            let (config, sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.tool_level, 2);
+            let src = sources.iter().find(|s| s.key == "tool_level").unwrap();
+            assert_eq!(src.value, "2");
+            assert_eq!(src.source, "env");
+        });
+    }
+
+    #[test]
+    fn tool_level_from_config_file() {
+        with_env_lock(|| {
+            cleanup_vars();
+            let tmp = tempfile::tempdir().unwrap();
+            write_toml_config(
+                tmp.path(),
+                r#"
+                provider_name = "completions"
+                model_name = "llama3"
+                tool_level = 3
+                "#,
+            );
+            env::set_var("XDG_CONFIG_HOME", tmp.path());
+            env::set_var("CMDIFY_COMPLETIONS_URL", "http://localhost:11434");
+
+            let (config, sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.tool_level, 3);
+            let src = sources.iter().find(|s| s.key == "tool_level").unwrap();
+            assert_eq!(src.source, "file");
+        });
+    }
+
+    #[test]
+    fn tool_level_cli_overrides_env() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::set_var("CMDIFY_TOOL_LEVEL", "2");
+            let (mut config, _sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.tool_level, 2);
+            config.tool_level = Some(3).unwrap_or(config.tool_level);
+            assert_eq!(config.tool_level, 3);
+        });
+    }
+
+    #[test]
+    fn tool_level_invalid_env_uses_default() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::set_var("CMDIFY_TOOL_LEVEL", "abc");
+            let (config, _sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.tool_level, 1);
+        });
+    }
+
+    #[test]
+    fn tool_level_clamped_to_3() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::set_var("CMDIFY_TOOL_LEVEL", "99");
+            let (config, _sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.tool_level, 3);
+        });
+    }
+
+    #[test]
+    fn tool_level_default_is_1() {
+        with_env_lock(|| {
+            setup_completions_env();
+            env::remove_var("CMDIFY_TOOL_LEVEL");
+            let (config, sources) = Config::from_env(None).unwrap();
+            assert_eq!(config.tool_level, 1);
+            assert!(!sources.iter().any(|s| s.key == "tool_level"));
         });
     }
 }

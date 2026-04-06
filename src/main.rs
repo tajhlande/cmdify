@@ -12,9 +12,37 @@ mod tools;
 use clap::Parser;
 use cli::Cli;
 
+fn print_tool_levels() {
+    println!("cmdify tool levels (default: 1)");
+    println!();
+    println!("Level 0 — no tools");
+    println!();
+    println!("Level 1 — core:");
+    println!("  ask_user                Ask the user a clarifying question");
+    println!("  find_command            Check whether a command exists on the system");
+    println!("  list_current_directory  List files in the current working directory (not yet implemented)");
+    println!();
+    println!("Level 2 — local:");
+    println!("  command_help            Show help text for a command (optional grep filter) (not yet implemented)");
+    println!("  list_any_directory      List files in any user-specified directory (not yet implemented)");
+    println!("  pwd                     Print the current working directory (not yet implemented)");
+    println!();
+    println!("Level 3 — system:");
+    println!("  get_env                 Read environment variables (not yet implemented)");
+    println!("  list_processes          List running processes (not yet implemented)");
+    println!();
+    println!("Use -t N or --tools N to set the tool level (0-3).");
+    println!("Use -q, -b, -n to disable individual tools or all tools.");
+}
+
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
+
+    if cli.list_tools {
+        print_tool_levels();
+        std::process::exit(0);
+    }
 
     if cli.prompt.is_empty() {
         Cli::parse_from(["cmdify", "--help"]);
@@ -73,6 +101,14 @@ async fn main() {
             source: "cli".into(),
         });
     }
+    if let Some(t) = cli.tool_level {
+        sources.push(config::ConfigSource {
+            key: "tool_level".into(),
+            value: t.to_string(),
+            source: "cli".into(),
+        });
+        config.tool_level = t.min(3);
+    }
 
     config.quiet = cli.quiet || config.quiet;
     config.blind = cli.blind || config.blind;
@@ -81,6 +117,14 @@ async fn main() {
     config.debug_level = std::cmp::max(config.debug_level, cli.debug);
 
     debug::init(config.debug_level);
+
+    if !sources.iter().any(|s| s.key == "tool_level") {
+        sources.push(config::ConfigSource {
+            key: "tool_level".into(),
+            value: config.tool_level.to_string(),
+            source: "default".into(),
+        });
+    }
 
     for src in &sources {
         debug!("Config: {} = {} ({})", src.key, src.value, src.source);

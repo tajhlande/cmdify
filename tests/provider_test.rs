@@ -20,6 +20,7 @@ fn make_config(base_url: &str, api_key: Option<&str>, model: &str) -> Config {
         no_tools: false,
         yolo: false,
         debug_level: 0,
+        tool_level: 1,
         provider_settings: ProviderSettings {
             api_key: api_key.map(|k| k.into()),
             base_url: base_url.into(),

@@ -19,6 +19,7 @@ fn make_config(base_url: &str) -> Config {
         no_tools: false,
         yolo: false,
         debug_level: 0,
+        tool_level: 1,
         provider_settings: ProviderSettings {
             api_key: None,
             base_url: base_url.into(),

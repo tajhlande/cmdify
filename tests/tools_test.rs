@@ -88,7 +88,7 @@ async fn ask_user_empty_choices_errors() {
 
 #[test]
 fn registry_both_tools_by_default() {
-    let registry = ToolRegistry::new(false, false, false);
+    let registry = ToolRegistry::new(1, false, false, false);
     let defs = registry.definitions();
     assert_eq!(defs.len(), 2);
     let names: Vec<&str> = defs.iter().map(|d| d.name.as_str()).collect();
@@ -98,7 +98,7 @@ fn registry_both_tools_by_default() {
 
 #[test]
 fn registry_quiet_excludes_ask_user() {
-    let registry = ToolRegistry::new(true, false, false);
+    let registry = ToolRegistry::new(1, true, false, false);
     let defs = registry.definitions();
     let names: Vec<&str> = defs.iter().map(|d| d.name.as_str()).collect();
     assert!(!names.contains(&"ask_user"));
@@ -107,7 +107,7 @@ fn registry_quiet_excludes_ask_user() {
 
 #[test]
 fn registry_blind_excludes_find_command() {
-    let registry = ToolRegistry::new(false, true, false);
+    let registry = ToolRegistry::new(1, false, true, false);
     let defs = registry.definitions();
     let names: Vec<&str> = defs.iter().map(|d| d.name.as_str()).collect();
     assert!(names.contains(&"ask_user"));
@@ -116,12 +116,12 @@ fn registry_blind_excludes_find_command() {
 
 #[test]
 fn registry_no_tools_is_empty() {
-    let registry = ToolRegistry::new(false, false, true);
+    let registry = ToolRegistry::new(1, false, false, true);
     assert!(registry.definitions().is_empty());
 }
 
 #[test]
 fn registry_quiet_and_blind_is_empty() {
-    let registry = ToolRegistry::new(true, true, false);
+    let registry = ToolRegistry::new(1, true, true, false);
     assert!(registry.definitions().is_empty());
 }

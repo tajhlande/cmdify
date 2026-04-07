@@ -99,6 +99,8 @@ impl CompletionsProvider {
                         let id = tc.get("id")?.as_str()?.to_string();
                         let func = tc.get("function")?;
                         let name = func.get("name")?.as_str()?.to_string();
+                        // `arguments` arrives as a JSON string from the API; some providers send it
+                        // pre-parsed as an object. We handle both cases here.
                         let arguments = func
                             .get("arguments")
                             .and_then(|a| {
@@ -189,6 +191,9 @@ impl Provider for CompletionsProvider {
         let elapsed = start.elapsed().as_millis();
 
         let status = response.status();
+        // The response body is consumed as raw text first so that non-JSON error
+        // responses (e.g., HTML error pages from misconfigured proxies) can be
+        // reported with a useful message instead of a cryptic parse failure.
         let raw_body = response.text().await?;
 
         debug!(

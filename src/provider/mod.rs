@@ -5,6 +5,9 @@ use async_trait::async_trait;
 use crate::config::Config;
 use crate::error::{Error, Result};
 
+// Canonical message types for the multi-turn conversation.
+// `ToolResult.name` is included for completeness but most providers don't
+// use it in the wire format — they only need `tool_call_id`.
 #[derive(Debug, Clone)]
 pub enum Message {
     System {

@@ -8,6 +8,9 @@ pub const PROMPT_TOOLS: &str = include_str!("system_prompt_tools.txt");
 pub const PROMPT_SAFETY: &str = include_str!("system_prompt_safety.txt");
 pub const PROMPT_UNSAFE: &str = include_str!("system_prompt_unsafe.txt");
 
+// System prompt is assembled from modular pieces depending on the configuration:
+//   - Custom override: replaces ALL pieces (base + tools + safety); only OS/shell info appended.
+//   - No override:     base + tools (if enabled) + safety-or-unsafe (depending on flag).
 pub fn load_system_prompt(config: &Config) -> Result<String> {
     let has_override = config.system_prompt_override.is_some();
 
@@ -46,6 +49,9 @@ pub fn load_system_prompt(config: &Config) -> Result<String> {
     Ok(parts.join("\n\n"))
 }
 
+// OS detection uses a fallback chain: sw_vers (macOS) → lsb_release (Debian/Ubuntu) →
+// /etc/os-release (systemd-based distros) → uname -s (broad fallback).
+// Each step only runs the next if the previous one fails.
 fn detect_os_version() -> String {
     if command_exists("sw_vers").is_some() {
         if let Some(version) = parse_sw_vers() {

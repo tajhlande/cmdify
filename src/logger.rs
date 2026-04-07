@@ -38,6 +38,10 @@ impl CmdifyLogger {
         }
     }
 
+    // History log path follows XDG Base Directory specification:
+    //   $XDG_STATE_HOME/cmdify/history.log
+    // Falls back to ~/.local/state/cmdify/history.log, or "cmdify.log" in cwd
+    // if neither $XDG_STATE_HOME nor $HOME is set.
     fn log_file_path() -> PathBuf {
         let state_home = if let Ok(xdg) = std::env::var("XDG_STATE_HOME") {
             PathBuf::from(xdg)

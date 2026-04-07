@@ -32,6 +32,14 @@ pub struct ToolRegistry {
     tools: Vec<Box<dyn Tool>>,
 }
 
+// Tool levels control which tools are registered:
+//   0 — none
+//   1 — core (ask_user, find_command)  ← default
+//   2 — local (same as 1 until level-2 tools are implemented)
+//   3 — system (same as 1 until level-3 tools are implemented)
+//
+// The `-q` (quiet), `-b` (blind), and `-n` (no-tools) flags remove individual
+// tools or all tools regardless of level.
 impl ToolRegistry {
     pub fn new(tool_level: u8, quiet: bool, blind: bool, no_tools: bool) -> Self {
         if no_tools {

@@ -6,6 +6,8 @@ use crate::provider::{create_provider, Message};
 use crate::spinner::SpinnerPause;
 use crate::tools::ToolRegistry;
 
+// Safety cap to prevent infinite tool-call loops (e.g., an LLM that keeps asking
+// the same clarifying question). In practice, most exchanges complete in 1-3 rounds.
 const MAX_TOOL_ITERATIONS: usize = 10;
 
 pub async fn run(

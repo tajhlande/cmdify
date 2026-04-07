@@ -13,6 +13,10 @@ pub struct SafetyBlock {
     pub matched_text: String,
 }
 
+// Boolean flags (quiet, blind, no_tools, unsafe, yolo) use OR semantics:
+// a `true` from *any* layer (env, file, CLI) wins. Debug uses MAX semantics
+// so `-dd` on the CLI raises the level even if the config file set level 1.
+// Source tracking records every layer that contributed a truthy value.
 pub fn apply_cli_overrides(cli: &Cli, mut config: Config) -> (Config, Vec<ConfigSource>) {
     let mut sources = Vec::new();
 
@@ -107,6 +111,10 @@ pub fn safety_gate(content: &str, allow_unsafe: bool) -> Result<(), SafetyBlock>
     }
 }
 
+// Uses $SHELL so the executed command runs under the user's preferred shell,
+// ensuring compatibility with shell-specific syntax the LLM may generate.
+// The command is passed as a single string argument to `sh -c`, so no
+// additional tokenization is needed on our side.
 pub fn execute_command(
     command: &str,
     logger: &CmdifyLogger,

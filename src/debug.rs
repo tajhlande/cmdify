@@ -1,6 +1,14 @@
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Instant;
 
+// Debug levels:
+//   0 — off (default)
+//   1 — basic: request/response events, tool calls, config sources
+//   2 — verbose: adds full JSON request/response bodies
+//
+// All output goes to stderr so it doesn't interfere with command output on stdout.
+// SeqCst ordering is used on the level atomic because init and reads can happen
+// on different threads (init in main, reads in async tasks).
 static LEVEL: AtomicU8 = AtomicU8::new(0);
 static START_TIME: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
 

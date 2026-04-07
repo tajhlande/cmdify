@@ -12,6 +12,9 @@ use crate::spinner::SpinnerPause;
 use super::{Tool, ToolOutput};
 
 const DEFAULT_TIMEOUT_SECS: u64 = 60;
+// Sentinel returned to the LLM when the user doesn't respond (timeout, empty input,
+// or stdin error). The LLM prompt is designed to treat this as "user declined to answer"
+// and proceed with a reasonable default.
 const NO_RESPONSE_SENTINEL: &str = "(no response)";
 
 pub struct AskUserTool {
@@ -165,6 +168,9 @@ impl Tool for AskUserTool {
 
         let valid_keys: Vec<String> = choices.iter().map(|(k, _)| k.clone()).collect();
 
+        // stdin reading is moved to a blocking thread via spawn_blocking because
+        // tokio's async stdin support is limited and we need synchronous BufRead.
+        // The spinner is paused while waiting so the prompt text isn't overwritten.
         let result = tokio::time::timeout(
             std::time::Duration::from_secs(self.timeout_secs),
             tokio::task::spawn_blocking(move || {

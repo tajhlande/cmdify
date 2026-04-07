@@ -37,6 +37,9 @@ fn print_tool_levels() {
     println!("Use -q, -b, -n to disable individual tools or all tools.");
 }
 
+// Entry point: parse CLI → load config → apply CLI overrides → init debug →
+// start spinner → run orchestrator → safety gate → print result → optional yolo exec.
+// Safety details (pass/category/matched) are only shown when debug > 0.
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();

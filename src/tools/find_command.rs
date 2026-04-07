@@ -100,6 +100,10 @@ impl Tool for FindCommandTool {
     }
 }
 
+// The command name is passed as a positional argument to `sh -c` via `$1` and the
+// `--` sentinel, which prevents shell injection: an input like "ls; rm -rf /"
+// becomes a literal single argument to `command -v`, not multiple shell commands.
+// This is verified by the `shell_injection_safety` test.
 async fn lookup_command(command: &str, logger: Option<&CmdifyLogger>) -> Option<String> {
     if let Some(lg) = logger {
         lg.log("find_command", &format!("command -v {}", command));

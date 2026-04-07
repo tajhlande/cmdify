@@ -1,3 +1,17 @@
+// Semantic safety checker for generated commands.
+//
+// The checker runs a 4-pass pipeline on each sub-command (after chain-splitting):
+//   Pass 1 — Structural: command substitution, backticks, pipe-to-shell, eval,
+//            fork bombs, redirect-to-block-device, leading-truncation redirect.
+//   Pass 2 — Command-level: inherently dangerous binaries (mkfs, dd, fdisk, etc.).
+//   Pass 3 — Flag-level: dangerous flag combos specific to a command
+//            (--no-preserve-root, chmod -R 777, kill -9 -1, crontab -r, etc.).
+//   Pass 4 — Target-level: broad/sensitive filesystem targets paired with
+//            recursive or destructive flags.
+//
+// Before any pass runs, "sudo" is stripped from the token list so the checks
+// apply equally to sudo'd and non-sudo'd commands.
+
 pub struct UnsafeMatch {
     pub pass: u8,
     pub category: &'static str,
@@ -121,6 +135,10 @@ fn check_flags(tokens: &[String]) -> Option<UnsafeMatch> {
 
     match bare {
         "rm" => {
+            // `-rf` and `-fr` are a single token after shlex splitting (e.g. "rm -rf /tmp"),
+            // so checking for them as combined strings is essential — separate `starts_with("-r")`
+            // and `starts_with("-f")` checks would both fail on the combined token.
+            // We also accept compound flags like `-rfX` that *contain* `-rf`/`-fr`.
             let has_rf = tokens
                 .iter()
                 .any(|t| t == "-rf" || t == "-fr" || t.contains("-rf") || t.contains("-fr"));
@@ -188,8 +206,14 @@ fn check_flags(tokens: &[String]) -> Option<UnsafeMatch> {
     }
 }
 
+// Options that appear *before* any path arguments in a `find` command.
+// These are global settings (like -H, -L) that don't consume the next token.
 const FIND_GLOBAL_OPTIONS: &[&str] = &["-H", "-L", "-P", "-help", "-D", "-O"];
 
+// Every `find` option/predicate that consumes the following token as its argument.
+// This list must be comprehensive: any option not listed here that does take an
+// argument would cause the argument to be misidentified as a scope path.
+// Derived from the GNU findutils and BSD find man pages.
 const FIND_OPTIONS_WITH_ARG: &[&str] = &[
     "-maxdepth",
     "-mindepth",
@@ -265,6 +289,9 @@ const FIND_OPTIONS_WITH_ARG: &[&str] = &[
     "-true",
 ];
 
+// Extract the scope paths (starting directories) from a `find` command's token list.
+// Walks past global options and any option+argument pairs; the first non-option
+// tokens are the scope paths. Everything after `--` is treated as a path.
 fn find_scope_paths(tokens: &[String]) -> Vec<&str> {
     let mut i = 1;
     let mut paths = Vec::new();
@@ -325,6 +352,7 @@ fn is_broad_target(path: &str) -> bool {
     false
 }
 
+// Extract the sub-command tokens between -exec/-execdir and the terminating `;` or `+`.
 fn extract_exec_command(tokens: &[String], exec_idx: usize) -> Vec<String> {
     let mut sub = Vec::new();
     let mut i = exec_idx + 1;
@@ -341,6 +369,9 @@ fn extract_exec_command(tokens: &[String], exec_idx: usize) -> Vec<String> {
     sub
 }
 
+// Quick check for patterns like `rm -rf {}` inside a find -exec. The `{}` placeholder
+// passes ordinary target checks (it's not a broad path), so we need this separate
+// pattern match to catch the destructive flag combination itself.
 fn has_dangerous_exec_pattern(tokens: &[String]) -> bool {
     if tokens.is_empty() {
         return false;
@@ -371,6 +402,11 @@ fn has_dangerous_exec_pattern(tokens: &[String]) -> bool {
     }
 }
 
+// find -delete and find -exec are only blocked when the *scope* is broad (/, /etc, etc.).
+// A scoped find like `find ./build -exec rm -rf {} +` is allowed because the blast
+// radius is limited.  Harmless -exec sub-commands (grep, cat, etc.) are allowed
+// regardless of scope — only destructive patterns (rm -rf, chmod -R 777) trigger
+// the broad-scope check.
 fn check_find(tokens: &[String]) -> Option<UnsafeMatch> {
     let scope_paths = find_scope_paths(tokens);
     let has_broad_scope = scope_paths.iter().any(|p| is_broad_target(p));
@@ -412,6 +448,9 @@ fn check_find(tokens: &[String]) -> Option<UnsafeMatch> {
     None
 }
 
+// `rm -rf` with *scoped* targets (like `./build`, `/tmp/stale`) is allowed.
+// Only broad/sensitive paths are blocked. This is the deliberate trade-off:
+// we want users to be able to clean build artifacts without `--unsafe`.
 fn check_rm_targets(tokens: &[String]) -> Option<UnsafeMatch> {
     let broad_paths = [
         "/", "/bin", "/sbin", "/lib", "/lib64", "/boot", "/sys", "/proc", "/dev", "/usr", "/var",
@@ -507,6 +546,9 @@ fn check_targets(tokens: &[String]) -> Option<UnsafeMatch> {
     None
 }
 
+// Pipe-to-shell detection must run on the *raw* string before chain-splitting
+// because `split_chained` already separates `|` into its own element. We need
+// to see the pattern `| sh` in context to match it.
 pub fn check(command: &str) -> Option<UnsafeMatch> {
     let trimmed = command.trim();
     if trimmed.is_empty() {
@@ -540,6 +582,10 @@ fn check_single(command: &str) -> Option<UnsafeMatch> {
         return Some(m);
     }
 
+    // Strip a leading "sudo" so the same checks protect both `rm -rf /` and
+    // `sudo rm -rf /`. The sudo check is intentionally simple — we don't try to
+    // handle `sudo -u otheruser` or nested sudo because the LLM is unlikely to
+    // generate those, and the safety system errs on the side of blocking.
     let effective = if tokens[0] == "sudo" && tokens.len() > 1 {
         &tokens[1..]
     } else {
@@ -561,6 +607,12 @@ fn check_single(command: &str) -> Option<UnsafeMatch> {
     None
 }
 
+// Split a command string into sub-commands on `&&`, `||`, `;`, and `|`.
+// Respects single/double quoting and backslash escapes so that separators
+// inside quotes are not treated as chain boundaries.
+//
+// `|` is emitted as its own element so the caller can still detect pipe-to-shell
+// patterns on the original raw string if needed (see `check()`).
 fn split_chained(command: &str) -> Vec<String> {
     let mut parts = Vec::new();
     let mut current = String::new();

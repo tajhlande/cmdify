@@ -27,6 +27,9 @@ pub struct SpinnerPause {
 
 impl SpinnerPause {
     pub fn pause(&self) {
+        // Relaxed ordering is sufficient for the pause flag — a stale read just means the
+        // spinner renders one extra frame before noticing the pause, which is invisible
+        // to the user at 120ms intervals.
         self.paused.store(true, Ordering::Relaxed);
     }
 

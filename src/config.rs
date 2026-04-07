@@ -5,6 +5,8 @@ use serde::Deserialize;
 
 use crate::error::{Error, Result};
 
+// Generous default to avoid truncation on longer tool-call exchanges. Local models
+// often ignore this field, and cloud providers bill per-token, so a high floor is cheap.
 const DEFAULT_MAX_TOKENS: u32 = 16384;
 
 #[derive(Debug, Clone)]
@@ -14,6 +16,10 @@ pub struct ConfigSource {
     pub source: String,
 }
 
+// Config file resolution order: CLI `--config` path > $CMDIFY_CONFIG env var >
+// $XDG_CONFIG_HOME/cmdify/config.toml > ~/.config/cmdify/config.toml.  Within the
+// file itself, only simple key-value pairs are supported (no per-provider tables);
+// provider-specific URLs live under `[providers]`.
 fn config_file_path() -> Option<PathBuf> {
     if let Ok(xdg) = env::var("XDG_CONFIG_HOME") {
         let p = PathBuf::from(xdg).join("cmdify").join("config.toml");
@@ -61,6 +67,10 @@ fn parse_u8_env(var: &str) -> Option<u8> {
     std::env::var(var).ok()?.parse().ok()
 }
 
+// Each resolve_* helper implements a two-tier precedence: environment variable wins
+// over TOML file value. When neither is set, the caller applies its own default.
+// Every resolution is recorded in `sources` so the debug display can show where each
+// value came from (env / file / cli / default).
 fn resolve_string(
     env_var: &str,
     file_value: Option<String>,
@@ -204,6 +214,8 @@ fn resolve_required_url(
     }
 }
 
+// record_api_key pushes a masked "***" value rather than the real key so that the
+// debug config dump never leaks secrets to stderr.
 fn record_api_key(env_var: &str, sources: &mut Vec<ConfigSource>) {
     if env::var(env_var).is_ok() {
         sources.push(ConfigSource {
@@ -214,6 +226,9 @@ fn record_api_key(env_var: &str, sources: &mut Vec<ConfigSource>) {
     }
 }
 
+// Combines URL resolution and API-key lookup into a single call used by every
+// provider arm.  `default_url` makes the URL optional for providers with a known
+// endpoint; `no_key` skips the API-key check entirely (e.g., local Ollama).
 fn resolve_provider_settings(
     key_var: &str,
     url_env_var: &str,
@@ -276,6 +291,12 @@ struct FileConfig {
     providers: ProviderUrls,
 }
 
+// Overall precedence for every setting:
+//   CLI flag  >  env var  >  config file  >  compiled default
+//
+// CLI flags are applied *after* Config::from_env returns, in app::apply_cli_overrides.
+// Boolean flags use OR semantics (true from any layer wins); debug uses MAX semantics
+// (highest level wins) so `-dd` on the CLI raises debug even if the file set level 1.
 impl Config {
     pub fn from_env(explicit_config_path: Option<&Path>) -> Result<(Self, Vec<ConfigSource>)> {
         let mut sources: Vec<ConfigSource> = Vec::new();
@@ -578,6 +599,7 @@ impl ProviderSettings {
                 sources,
                 false,
             ),
+            // Ollama runs locally and uses no API key; it defaults to http (not https).
             "ollama" => resolve_provider_settings(
                 "",
                 "OLLAMA_BASE_URL",

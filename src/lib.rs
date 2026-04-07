@@ -1,3 +1,4 @@
+pub mod app;
 pub mod cli;
 pub mod config;
 pub mod debug;
@@ -6,5 +7,6 @@ pub mod logger;
 pub mod orchestrator;
 pub mod prompt;
 pub mod provider;
+pub mod safety;
 pub mod spinner;
 pub mod tools;

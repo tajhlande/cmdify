@@ -3,26 +3,47 @@ use std::env;
 use crate::config::Config;
 use crate::error::Result;
 
-pub const EMBEDDED_SYSTEM_PROMPT: &str = include_str!("system_prompt.txt");
+pub const PROMPT_BASE: &str = include_str!("system_prompt_base.txt");
+pub const PROMPT_TOOLS: &str = include_str!("system_prompt_tools.txt");
+pub const PROMPT_SAFETY: &str = include_str!("system_prompt_safety.txt");
+pub const PROMPT_UNSAFE: &str = include_str!("system_prompt_unsafe.txt");
 
 pub fn load_system_prompt(config: &Config) -> Result<String> {
-    let base_prompt = if let Some(ref path) = config.system_prompt_override {
+    let has_override = config.system_prompt_override.is_some();
+
+    let base = if let Some(ref path) = config.system_prompt_override {
         std::fs::read_to_string(path)?
     } else {
-        EMBEDDED_SYSTEM_PROMPT.to_string()
+        PROMPT_BASE.to_string()
     };
+
+    let mut parts = vec![base];
+
+    if !has_override && !config.no_tools {
+        parts.push(PROMPT_TOOLS.to_string());
+    }
+
+    if !has_override {
+        if config.allow_unsafe {
+            parts.push(PROMPT_UNSAFE.to_string());
+        } else {
+            parts.push(PROMPT_SAFETY.to_string());
+        }
+    }
+
+    let os = detect_os_version();
 
     let shell = env::var("SHELL")
         .ok()
         .and_then(|s| s.rsplit('/').next().map(|n| n.to_string()))
         .unwrap_or_else(|| "bash".to_string());
 
-    let os = detect_os_version();
+    parts.push(format!(
+        "The user's operating system is {} and their shell is {}.",
+        os, shell
+    ));
 
-    Ok(format!(
-        "{}\n\nThe user's operating system is {} and their shell is {}.",
-        base_prompt, os, shell
-    ))
+    Ok(parts.join("\n\n"))
 }
 
 fn detect_os_version() -> String {
@@ -137,17 +158,17 @@ mod tests {
         f();
     }
 
-    fn make_config_with_override(override_path: Option<&str>) -> Config {
+    fn make_config(no_tools: bool, allow_unsafe: bool, override_path: Option<&str>) -> Config {
         Config {
             provider_name: "completions".into(),
             model_name: "test".into(),
             max_tokens: 4096,
             system_prompt_override: override_path.map(|p| p.to_string()),
             spinner: 1,
-            allow_unsafe: false,
+            allow_unsafe,
             quiet: false,
             blind: false,
-            no_tools: false,
+            no_tools,
             yolo: false,
             debug_level: 0,
             tool_level: 1,
@@ -163,19 +184,95 @@ mod tests {
     }
 
     #[test]
-    fn embedded_prompt_not_empty() {
-        assert!(!EMBEDDED_SYSTEM_PROMPT.is_empty());
+    fn prompt_base_not_empty() {
+        assert!(!PROMPT_BASE.is_empty());
     }
 
     #[test]
-    fn load_embedded_prompt() {
+    fn prompt_tools_not_empty() {
+        assert!(!PROMPT_TOOLS.is_empty());
+    }
+
+    #[test]
+    fn prompt_safety_not_empty() {
+        assert!(!PROMPT_SAFETY.is_empty());
+    }
+
+    #[test]
+    fn prompt_unsafe_not_empty() {
+        assert!(!PROMPT_UNSAFE.is_empty());
+    }
+
+    #[test]
+    fn default_assembly_includes_base_tools_safety_shell() {
         with_env_lock(|| {
             env::remove_var("SHELL");
-            let config = make_config_with_override(None);
+            let config = make_config(false, false, None);
             let prompt = load_system_prompt(&config).unwrap();
+
             assert!(prompt.contains("shell command generator"));
-            assert!(prompt.contains("The user's operating system is"));
+            assert!(prompt.contains("Tool usage:"));
+            assert!(prompt.contains("Safety:"));
             assert!(prompt.contains("and their shell is bash."));
+        });
+    }
+
+    #[test]
+    fn no_tools_excludes_tools_piece() {
+        with_env_lock(|| {
+            env::remove_var("SHELL");
+            let config = make_config(true, false, None);
+            let prompt = load_system_prompt(&config).unwrap();
+
+            assert!(prompt.contains("shell command generator"));
+            assert!(prompt.contains("Safety:"));
+            assert!(!prompt.contains("Tool usage:"));
+        });
+    }
+
+    #[test]
+    fn unsafe_includes_unsafe_piece_excludes_safety() {
+        with_env_lock(|| {
+            env::remove_var("SHELL");
+            let config = make_config(false, true, None);
+            let prompt = load_system_prompt(&config).unwrap();
+
+            assert!(prompt.contains("shell command generator"));
+            assert!(prompt.contains("Tool usage:"));
+            assert!(prompt.contains("Unsafe mode is active"));
+            assert!(!prompt.contains("Safety:"));
+        });
+    }
+
+    #[test]
+    fn no_tools_unsafe_includes_base_unsafe_shell_only() {
+        with_env_lock(|| {
+            env::remove_var("SHELL");
+            let config = make_config(true, true, None);
+            let prompt = load_system_prompt(&config).unwrap();
+
+            assert!(prompt.contains("shell command generator"));
+            assert!(prompt.contains("Unsafe mode is active"));
+            assert!(!prompt.contains("Tool usage:"));
+            assert!(!prompt.contains("Safety:"));
+        });
+    }
+
+    #[test]
+    fn custom_override_replaces_all_pieces() {
+        with_env_lock(|| {
+            env::remove_var("SHELL");
+            let dir = tempfile::tempdir().unwrap();
+            let custom_path = dir.path().join("custom_prompt.txt");
+            std::fs::write(&custom_path, "Custom system prompt.").unwrap();
+
+            let config = make_config(false, false, Some(custom_path.to_str().unwrap()));
+            let prompt = load_system_prompt(&config).unwrap();
+
+            assert!(prompt.starts_with("Custom system prompt."));
+            assert!(!prompt.contains("Tool usage:"));
+            assert!(!prompt.contains("Safety:"));
+            assert!(!prompt.contains("Unsafe mode"));
         });
     }
 
@@ -183,7 +280,7 @@ mod tests {
     fn shell_detection_zsh() {
         with_env_lock(|| {
             env::set_var("SHELL", "/bin/zsh");
-            let config = make_config_with_override(None);
+            let config = make_config(false, false, None);
             let prompt = load_system_prompt(&config).unwrap();
             assert!(prompt.contains("and their shell is zsh."));
         });
@@ -193,9 +290,29 @@ mod tests {
     fn shell_detection_defaults_to_bash() {
         with_env_lock(|| {
             env::remove_var("SHELL");
-            let config = make_config_with_override(None);
+            let config = make_config(false, false, None);
             let prompt = load_system_prompt(&config).unwrap();
             assert!(prompt.contains("and their shell is bash."));
+        });
+    }
+
+    #[test]
+    fn os_version_included() {
+        with_env_lock(|| {
+            env::remove_var("SHELL");
+            let config = make_config(false, false, None);
+            let prompt = load_system_prompt(&config).unwrap();
+            assert!(prompt.contains("The user's operating system is"));
+        });
+    }
+
+    #[test]
+    fn shell_detection_no_tools_unsafe() {
+        with_env_lock(|| {
+            env::set_var("SHELL", "/usr/local/bin/fish");
+            let config = make_config(true, true, None);
+            let prompt = load_system_prompt(&config).unwrap();
+            assert!(prompt.contains("and their shell is fish."));
         });
     }
 }

@@ -430,17 +430,17 @@ Edge cases:
 
 ## Acceptance Criteria
 
-- [ ] System prompt is split into four modular pieces
-- [ ] Default assembly includes base + tools + safety + shell
-- [ ] `-n` excludes tools piece from prompt
-- [ ] `--unsafe` replaces safety piece with unsafe piece
-- [ ] Custom prompt override still works
-- [ ] Safety check tokenizes commands via `shlex` before analysis
-- [ ] Pass 1 blocks shell injection constructs (backticks, $(), pipes to shell)
-- [ ] Pass 2 flags dangerous command names
-- [ ] Pass 3 flags dangerous flag combinations
-- [ ] Pass 4 flags broad/sensitive path targets
-- [ ] `echo "dangerous command"` passes (string literal, not executed)
-- [ ] Error message includes pass number, category, and matched text
-- [ ] `--unsafe` skips both LLM guidance and semantic check
-- [ ] `make check` passes
+- [x] System prompt is split into four modular pieces
+- [x] Default assembly includes base + tools + safety + shell
+- [x] `-n` excludes tools piece from prompt
+- [x] `--unsafe` replaces safety piece with unsafe piece
+- [x] Custom prompt override still works
+- [x] Safety check tokenizes commands via `shlex` before analysis
+- [x] Pass 1 blocks shell injection constructs (backticks, $(), pipes to shell)
+- [x] Pass 2 flags dangerous command names
+- [x] Pass 3 flags dangerous flag combinations
+- [x] Pass 4 flags broad/sensitive path targets
+- [x] `echo "dangerous command"` passes (string literal, not executed)
+- [x] Error message includes pass number, category, and matched text
+- [x] `--unsafe` skips both LLM guidance and semantic check
+- [x] `make check` passes

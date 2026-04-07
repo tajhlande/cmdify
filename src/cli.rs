@@ -40,6 +40,13 @@ pub struct Cli {
     pub blind: bool,
 
     #[arg(
+        short = 'u',
+        long = "unsafe",
+        help = "Allow potentially unsafe commands (bypasses safety check)"
+    )]
+    pub allow_unsafe: bool,
+
+    #[arg(
         short = 'y',
         long = "yolo",
         help = "Execute the generated command after printing it"
@@ -105,6 +112,18 @@ mod tests {
     fn parse_no_tools_flag() {
         let cli = Cli::try_parse_from(["cmdify", "-n", "find files"]).unwrap();
         assert!(cli.no_tools);
+    }
+
+    #[test]
+    fn parse_unsafe_short() {
+        let cli = Cli::try_parse_from(["cmdify", "-u", "find files"]).unwrap();
+        assert!(cli.allow_unsafe);
+    }
+
+    #[test]
+    fn parse_unsafe_long() {
+        let cli = Cli::try_parse_from(["cmdify", "--unsafe", "find files"]).unwrap();
+        assert!(cli.allow_unsafe);
     }
 
     #[test]

@@ -1,6 +1,6 @@
 [package]
 name = "cmdify"
-version = "0.4.0"
+version = "0.5.1"
 edition = "2021"
 description = "Turn natural language into shell commands with AI"
 
@@ -14,6 +14,7 @@ thiserror = "2"
 async-trait = "0.1"
 chrono = "0.4"
 toml = "1"
+shlex = "1"
 
 [profile.release]
 strip = true

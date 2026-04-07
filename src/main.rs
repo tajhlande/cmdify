@@ -1,3 +1,4 @@
+mod app;
 mod cli;
 mod config;
 mod debug;
@@ -6,6 +7,7 @@ mod logger;
 mod orchestrator;
 mod prompt;
 mod provider;
+mod safety;
 mod spinner;
 mod tools;
 
@@ -51,88 +53,23 @@ async fn main() {
 
     let user_prompt = cli.user_prompt();
 
-    let (mut config, mut sources) = match config::Config::from_env(cli.config.as_deref()) {
-        Ok(c) => c,
+    let (config, _file_sources) = match config::Config::from_env(cli.config.as_deref()) {
+        Ok((c, s)) => (c, s),
         Err(e) => {
             eprintln!("{}", e);
             std::process::exit(1);
         }
     };
 
-    if cli.quiet {
-        sources.push(config::ConfigSource {
-            key: "quiet".into(),
-            value: "true".into(),
-            source: "cli".into(),
-        });
-    }
-    if cli.blind {
-        sources.push(config::ConfigSource {
-            key: "blind".into(),
-            value: "true".into(),
-            source: "cli".into(),
-        });
-    }
-    if cli.no_tools {
-        sources.push(config::ConfigSource {
-            key: "no_tools".into(),
-            value: "true".into(),
-            source: "cli".into(),
-        });
-    }
-    if cli.yolo {
-        sources.push(config::ConfigSource {
-            key: "yolo".into(),
-            value: "true".into(),
-            source: "cli".into(),
-        });
-    }
-    if cli.debug > 0 {
-        sources.push(config::ConfigSource {
-            key: "debug".into(),
-            value: cli.debug.to_string(),
-            source: "cli".into(),
-        });
-    }
-    if let Some(s) = cli.spinner {
-        sources.push(config::ConfigSource {
-            key: "spinner".into(),
-            value: s.to_string(),
-            source: "cli".into(),
-        });
-    }
-    if let Some(t) = cli.tool_level {
-        sources.push(config::ConfigSource {
-            key: "tool_level".into(),
-            value: t.to_string(),
-            source: "cli".into(),
-        });
-        config.tool_level = t.min(3);
-    }
-
-    config.quiet = cli.quiet || config.quiet;
-    config.blind = cli.blind || config.blind;
-    config.no_tools = cli.no_tools || config.no_tools;
-    config.yolo = cli.yolo || config.yolo;
-    config.debug_level = std::cmp::max(config.debug_level, cli.debug);
+    let (config, sources) = app::apply_cli_overrides(&cli, config);
 
     debug::init(config.debug_level);
-
-    if !sources.iter().any(|s| s.key == "tool_level") {
-        sources.push(config::ConfigSource {
-            key: "tool_level".into(),
-            value: config.tool_level.to_string(),
-            source: "default".into(),
-        });
-    }
 
     for src in &sources {
         debug!("Config: {} = {} ({})", src.key, src.value, src.source);
     }
 
     let spinner = cli.spinner.unwrap_or(config.spinner);
-
-    let yolo = config.yolo;
 
     let lg = logger::CmdifyLogger::new(&config.model_name, &config.provider_name);
 
@@ -146,25 +83,24 @@ async fn main() {
     match result {
         Ok(content) => {
             debug!("Final response: {}", content);
+            if let Err(block) = app::safety_gate(&content, config.allow_unsafe) {
+                eprintln!("error: command blocked by safety check");
+                if config.debug_level > 0 {
+                    eprintln!(
+                        "  pass {}: {} — matched: \"{}\"",
+                        block.pass, block.category, block.matched_text
+                    );
+                }
+                eprintln!("  rerun with --unsafe (-u) to allow unsafe commands");
+                std::process::exit(1);
+            }
+
             println!("{}", content);
-            if yolo {
-                lg.log("output", &content);
-                let shell = std::env::var("SHELL").unwrap_or_else(|_| "sh".into());
-                debug!("shell exec: {} -c {}", shell, content);
-                let status = std::process::Command::new(shell)
-                    .arg("-c")
-                    .arg(&content)
-                    .status();
-                match status {
-                    Ok(s) => {
-                        let code = s.code().unwrap_or(1);
-                        debug!("Yolo: exit code {}", code);
-                        std::process::exit(code);
-                    }
-                    Err(e) => {
-                        eprintln!("error executing command: {}", e);
-                        std::process::exit(1);
-                    }
+
+            if config.yolo {
+                if let Err(e) = app::execute_command(&content, &lg) {
+                    eprintln!("{}", e);
+                    std::process::exit(1);
                 }
             }
         }

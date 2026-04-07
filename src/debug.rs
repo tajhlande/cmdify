@@ -43,19 +43,6 @@ pub fn format_json_line(label: &str, value: &serde_json::Value) -> String {
     format!("DEBUG +{}ms | {}\n{}", elapsed_ms(), label, pretty)
 }
 
-pub fn emit_line(msg: &str) {
-    if is_enabled() {
-        eprintln!("{}", format_line(msg));
-    }
-}
-
-#[allow(dead_code)]
-pub fn emit_line_at(min_level: u8, msg: &str) {
-    if level() >= min_level {
-        eprintln!("{}", format_line(msg));
-    }
-}
-
 pub fn emit_json(label: &str, value: &serde_json::Value) {
     if level() >= 2 {
         eprintln!("{}", format_json_line(label, value));
@@ -90,7 +77,7 @@ pub fn force_level_for_test(lvl: u8) {
 macro_rules! debug {
     ($($arg:tt)*) => {
         if $crate::debug::is_enabled() {
-            $crate::debug::emit_line(&$crate::debug::format_line(&format!($($arg)*)))
+            eprintln!("{}", $crate::debug::format_line(&format!($($arg)*)))
         }
     };
 }
@@ -109,7 +96,7 @@ macro_rules! debug_json {
 macro_rules! debug_at {
     ($min_level:expr, $($arg:tt)*) => {
         if $crate::debug::level() >= $min_level {
-            $crate::debug::emit_line_at($min_level, &$crate::debug::format_line(&format!($($arg)*)))
+            eprintln!("{}", $crate::debug::format_line(&format!($($arg)*)))
         }
     };
 }
@@ -210,17 +197,22 @@ mod tests {
     }
 
     #[test]
-    fn emit_line_silent_when_disabled() {
-        reset_for_test();
-        assert!(!is_enabled());
-        emit_line("should not appear");
-    }
-
-    #[test]
     fn emit_json_silent_at_level_1() {
         reset_for_test();
         force_level_for_test(1);
         assert_eq!(level(), 1);
         emit_json("should not appear", &serde_json::json!({"x": 1}));
+    }
+
+    #[test]
+    fn debug_macro_single_prefix() {
+        reset_for_test();
+        force_enable_for_test();
+        let line = format_line(&format!("hello {}", 42));
+        // format_line produces exactly one "DEBUG +Xms |" prefix
+        assert!(line.starts_with("DEBUG +"));
+        let count = line.matches("DEBUG +").count();
+        assert_eq!(count, 1, "expected exactly one DEBUG prefix, got: {}", line);
+        reset_for_test();
     }
 }

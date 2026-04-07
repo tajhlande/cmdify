@@ -56,7 +56,7 @@ async fn main() {
 
     let user_prompt = cli.user_prompt();
 
-    let (config, _file_sources) = match config::Config::from_env(cli.config.as_deref()) {
+    let (config, env_sources) = match config::Config::from_env(cli.config.as_deref()) {
         Ok((c, s)) => (c, s),
         Err(e) => {
             eprintln!("{}", e);
@@ -64,11 +64,14 @@ async fn main() {
         }
     };
 
-    let (config, sources) = app::apply_cli_overrides(&cli, config);
+    let (config, cli_sources) = app::apply_cli_overrides(&cli, config);
 
     debug::init(config.debug_level);
 
-    for src in &sources {
+    for src in &env_sources {
+        debug!("Config: {} = {} ({})", src.key, src.value, src.source);
+    }
+    for src in &cli_sources {
         debug!("Config: {} = {} ({})", src.key, src.value, src.source);
     }
 

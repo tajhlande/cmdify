@@ -257,6 +257,27 @@ mod tests {
     }
 
     #[test]
+    fn tool_level_cli_overrides_env_level() {
+        let mut config = base_config();
+        config.tool_level = 2;
+        let cli = Cli {
+            config: None,
+            tool_level: Some(3),
+            list_tools: false,
+            no_tools: false,
+            quiet: false,
+            blind: false,
+            allow_unsafe: false,
+            yolo: false,
+            debug: 0,
+            spinner: None,
+            prompt: vec!["test".into()],
+        };
+        let (config, _) = apply_cli_overrides(&cli, config);
+        assert_eq!(config.tool_level, 3);
+    }
+
+    #[test]
     fn default_tool_level_source_added() {
         let (config, sources) = config_with_sources(false, false, false, false, 0, 1);
         assert_eq!(config.tool_level, 1);

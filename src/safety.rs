@@ -27,21 +27,17 @@ fn blocked(pass: u8, category: &'static str, text: &str) -> Option<UnsafeMatch> 
 }
 
 fn check_structural(tokens: &[String], raw: &str) -> Option<UnsafeMatch> {
-    if raw.contains('$') && raw.contains('(') {
-        if let Some(start) = raw.find("$(") {
-            if let Some(end) = raw[start..].find(')') {
-                let snippet = &raw[start..=start + end];
-                return blocked(1, "command substitution", snippet);
-            }
+    if let Some(start) = raw.find("$(") {
+        if let Some(end) = raw[start..].find(')') {
+            let snippet = &raw[start..=start + end];
+            return blocked(1, "command substitution", snippet);
         }
     }
 
-    if raw.contains('`') {
-        if let Some(start) = raw.find('`') {
-            if let Some(end) = raw[start + 1..].find('`') {
-                let snippet = &raw[start..=start + 1 + end];
-                return blocked(1, "backtick substitution", snippet);
-            }
+    if let Some(start) = raw.find('`') {
+        if let Some(end) = raw[start + 1..].find('`') {
+            let snippet = &raw[start..=start + 1 + end];
+            return blocked(1, "backtick substitution", snippet);
         }
     }
 
@@ -79,13 +75,29 @@ fn check_structural(tokens: &[String], raw: &str) -> Option<UnsafeMatch> {
     None
 }
 
+const BROAD_PATHS: &[&str] = &[
+    "/", "/bin", "/sbin", "/lib", "/lib64", "/etc", "/boot", "/sys", "/proc", "/dev", "/usr",
+    "/var", "/opt", "/root",
+];
+
+const SENSITIVE_PREFIXES: &[&str] = &["/etc/passwd", "/etc/shadow", "/etc/sudoers"];
+
+const HOME_PATTERNS: &[&str] = &["~", "$HOME"];
+
+// Commands that need target-level checking at pass 4 when combined with
+// dangerous flags. Includes all commands from check_command plus additional
+// flag-only commands (rm, chmod, kill, killall).
+const TARGET_CHECKED_COMMANDS: &[&str] = &[
+    "dd", "fdisk", "parted", "mkswap", "shutdown", "reboot", "halt", "poweroff", "init",
+    "modprobe", "rmmod", "insmod", "rm", "chmod", "kill", "killall",
+];
+
 fn check_command(tokens: &[String]) -> Option<UnsafeMatch> {
     if tokens.is_empty() {
         return None;
     }
 
-    let cmd = &tokens[0];
-    let bare = cmd.rsplit('/').next().unwrap_or(cmd);
+    let bare = tokens[0].rsplit('/').next().unwrap_or(&tokens[0]);
 
     if bare == "mkfs" || bare.starts_with("mkfs.") {
         return blocked(2, "disk/filesystem destruction", bare);
@@ -105,24 +117,7 @@ fn is_flagged_command(bare: &str) -> bool {
     if bare == "mkfs" || bare.starts_with("mkfs.") {
         return true;
     }
-    matches!(
-        bare,
-        "dd" | "fdisk"
-            | "parted"
-            | "mkswap"
-            | "shutdown"
-            | "reboot"
-            | "halt"
-            | "poweroff"
-            | "init"
-            | "modprobe"
-            | "rmmod"
-            | "insmod"
-            | "rm"
-            | "chmod"
-            | "kill"
-            | "killall"
-    )
+    TARGET_CHECKED_COMMANDS.contains(&bare)
 }
 
 fn check_flags(tokens: &[String]) -> Option<UnsafeMatch> {
@@ -330,20 +325,13 @@ fn find_scope_paths(tokens: &[String]) -> Vec<&str> {
 }
 
 fn is_broad_target(path: &str) -> bool {
-    let broad_paths = [
-        "/", "/bin", "/sbin", "/lib", "/lib64", "/etc", "/boot", "/sys", "/proc", "/dev", "/usr",
-        "/var", "/opt", "/root",
-    ];
-
-    let home_patterns = ["~", "$HOME"];
-
-    for pat in &home_patterns {
+    for pat in HOME_PATTERNS {
         if path == *pat {
             return true;
         }
     }
 
-    for pat in &broad_paths {
+    for pat in BROAD_PATHS {
         if path == *pat || path.starts_with(&format!("{}/", pat)) {
             return true;
         }
@@ -448,27 +436,18 @@ fn check_find(tokens: &[String]) -> Option<UnsafeMatch> {
     None
 }
 
-// `rm -rf` with *scoped* targets (like `./build`, `/tmp/stale`) is allowed.
-// Only broad/sensitive paths are blocked. This is the deliberate trade-off:
-// we want users to be able to clean build artifacts without `--unsafe`.
-fn check_rm_targets(tokens: &[String]) -> Option<UnsafeMatch> {
-    let broad_paths = [
-        "/", "/bin", "/sbin", "/lib", "/lib64", "/boot", "/sys", "/proc", "/dev", "/usr", "/var",
-        "/opt", "/root",
-    ];
-
-    let sensitive_prefixes = ["/etc/passwd", "/etc/shadow", "/etc/sudoers"];
-
-    let home_patterns = ["~", "$HOME"];
-
-    for tok in &tokens[1..] {
-        for pat in &sensitive_prefixes {
+// Shared target-level check for all commands that carry dangerous flags.
+// Checks argument tokens against sensitive files, home patterns, block devices,
+// wildcards, and broad filesystem paths.
+fn check_path_targets(tokens: &[String]) -> Option<UnsafeMatch> {
+    for tok in tokens {
+        for pat in SENSITIVE_PREFIXES {
             if tok.starts_with(pat) {
                 return blocked(4, "sensitive system file", tok);
             }
         }
 
-        for pat in &home_patterns {
+        for pat in HOME_PATTERNS {
             if tok == pat {
                 return blocked(4, "home directory target", tok);
             }
@@ -481,11 +460,11 @@ fn check_rm_targets(tokens: &[String]) -> Option<UnsafeMatch> {
             return blocked(4, "block device target", tok);
         }
 
-        if tok == "*" && tokens.len() > 1 {
+        if tok == "*" && !tokens.is_empty() {
             return blocked(4, "broad wildcard target", "*");
         }
 
-        for pat in &broad_paths {
+        for pat in BROAD_PATHS {
             if tok == pat || tok.starts_with(&format!("{}/", pat)) {
                 return blocked(4, "broad filesystem target", tok);
             }
@@ -495,55 +474,21 @@ fn check_rm_targets(tokens: &[String]) -> Option<UnsafeMatch> {
     None
 }
 
+// `rm -rf` with *scoped* targets (like `./build`, `/tmp/stale`) is allowed.
+// Only broad/sensitive paths are blocked. This is the deliberate trade-off:
+// we want users to be able to clean build artifacts without `--unsafe`.
+fn check_rm_targets(tokens: &[String]) -> Option<UnsafeMatch> {
+    check_path_targets(&tokens[1..])
+}
+
 fn check_targets(tokens: &[String]) -> Option<UnsafeMatch> {
-    let cmd = &tokens[0];
-    let bare = cmd.rsplit('/').next().unwrap_or(cmd);
+    let bare = tokens[0].rsplit('/').next().unwrap_or(&tokens[0]);
 
     if !is_flagged_command(bare) {
         return None;
     }
 
-    let broad_paths = [
-        "/", "/bin", "/sbin", "/lib", "/lib64", "/etc", "/boot", "/sys", "/proc", "/dev", "/usr",
-        "/var", "/opt", "/root",
-    ];
-
-    let sensitive_prefixes = ["/etc/passwd", "/etc/shadow", "/etc/sudoers"];
-
-    let home_patterns = ["~", "$HOME"];
-
-    for tok in &tokens[1..] {
-        for pat in &sensitive_prefixes {
-            if tok.starts_with(pat) {
-                return blocked(4, "sensitive system file", tok);
-            }
-        }
-
-        for pat in &home_patterns {
-            if tok == pat {
-                return blocked(4, "home directory target", tok);
-            }
-        }
-
-        if tok.starts_with("/dev/sd")
-            || tok.starts_with("/dev/nvme")
-            || tok.starts_with("/dev/rdisk")
-        {
-            return blocked(4, "block device target", tok);
-        }
-
-        if tok == "*" && tokens.len() > 1 {
-            return blocked(4, "broad wildcard target", "*");
-        }
-
-        for pat in &broad_paths {
-            if tok == pat || tok.starts_with(&format!("{}/", pat)) {
-                return blocked(4, "broad filesystem target", tok);
-            }
-        }
-    }
-
-    None
+    check_path_targets(&tokens[1..])
 }
 
 // Pipe-to-shell detection must run on the *raw* string before chain-splitting

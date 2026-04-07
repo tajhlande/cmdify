@@ -52,6 +52,12 @@ pub struct Spinner {
 
 impl Drop for Spinner {
     fn drop(&mut self) {
+        self.shutdown();
+    }
+}
+
+impl Spinner {
+    fn shutdown(&mut self) {
         if let Some(running) = self.running.take() {
             running.store(false, Ordering::Relaxed);
         }
@@ -62,9 +68,7 @@ impl Drop for Spinner {
         let _ = write!(stderr, "\r   \r");
         let _ = stderr.flush();
     }
-}
 
-impl Spinner {
     pub fn start(selection: u8) -> Self {
         if !io::stderr().is_terminal() {
             return Self {
@@ -104,15 +108,7 @@ impl Spinner {
     }
 
     pub fn stop(mut self) {
-        if let Some(running) = self.running.take() {
-            running.store(false, Ordering::Relaxed);
-        }
-        if let Some(handle) = self.handle.take() {
-            let _ = handle.join();
-        }
-        let mut stderr = io::stderr();
-        let _ = write!(stderr, "\r   \r");
-        let _ = stderr.flush();
+        self.shutdown();
     }
 
     pub fn pause_handle(&self) -> SpinnerPause {

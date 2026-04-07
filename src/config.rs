@@ -648,7 +648,6 @@ pub struct Config {
     pub max_tokens: u32,
     pub system_prompt_override: Option<String>,
     pub spinner: u8,
-    #[allow(dead_code)]
     pub allow_unsafe: bool,
     pub quiet: bool,
     pub blind: bool,
@@ -1618,18 +1617,6 @@ mod tests {
             assert_eq!(config.tool_level, 3);
             let src = sources.iter().find(|s| s.key == "tool_level").unwrap();
             assert_eq!(src.source, "file");
-        });
-    }
-
-    #[test]
-    fn tool_level_cli_overrides_env() {
-        with_env_lock(|| {
-            setup_completions_env();
-            env::set_var("CMDIFY_TOOL_LEVEL", "2");
-            let (mut config, _sources) = Config::from_env(None).unwrap();
-            assert_eq!(config.tool_level, 2);
-            config.tool_level = Some(3).unwrap_or(config.tool_level);
-            assert_eq!(config.tool_level, 3);
         });
     }
 

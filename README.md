@@ -133,14 +133,18 @@ like API keys.
 
 ## CLI Flags
 
-| Flag                  | Effect                                    |
-|-----------------------|-------------------------------------------|
-| `-q`, `--quiet`       | Disable the `ask_user` clarification tool |
-| `-b`, `--blind`       | Disable the `find_command` discovery tool |
-| `-n`, `--no-tools`    | Disable all tools                         |
-| `-y`, `--yolo`        | Execute the generated command after printing it |
-| `-s N`, `--spinner N` | Spinner style: 1 (default), 2 (braille), 3 (dots) |
-| `-u`, `--unsafe`      | Allow potentially unsafe commands (bypasses safety check) |
+| Flag                    | Effect                                                     |
+|-------------------------|------------------------------------------------------------|
+| `-c`, `--config FILE`   | Path to config file (must exist)                           |
+| `-t N`, `--tools N`     | Tool level: 0 (none), 1 (core, default), 2 (local), 3 (system) |
+| `--list-tools`          | List all available tools by level and exit                 |
+| `-q`, `--quiet`         | Disable the `ask_user` clarification tool                  |
+| `-b`, `--blind`         | Disable the `find_command` discovery tool                  |
+| `-n`, `--no-tools`      | Disable all tools                                          |
+| `-u`, `--unsafe`        | Allow potentially unsafe commands (bypasses safety check)   |
+| `-y`, `--yolo`          | Execute the generated command after printing it            |
+| `-d`, `--debug`         | Enable debug logging to stderr (`-d` basic, `-dd` verbose) |
+| `-s N`, `--spinner N`   | Spinner style: 1 (default bar), 2 (braille), 3 (dots)      |
 
 ## Development
 

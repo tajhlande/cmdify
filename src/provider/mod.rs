@@ -91,9 +91,15 @@ pub mod completions;
 pub mod gemini;
 pub mod http;
 pub mod huggingface;
+pub mod kimi;
+pub mod minimax;
+pub mod mistral;
+pub mod ollama;
 pub mod openai;
 pub mod openrouter;
+pub mod qwen;
 pub mod responses;
+pub mod zai;
 
 use async_trait::async_trait;
 
@@ -172,6 +178,12 @@ pub fn create_provider(config: &Config) -> Result<Box<dyn Provider>> {
         "gemini" => Ok(Box::new(gemini::create(config)?)),
         "openrouter" => Ok(Box::new(openrouter::create(config)?)),
         "huggingface" => Ok(Box::new(huggingface::create(config)?)),
+        "zai" => Ok(Box::new(zai::create(config)?)),
+        "minimax" => Ok(Box::new(minimax::create(config)?)),
+        "qwen" => Ok(Box::new(qwen::create(config)?)),
+        "kimi" => Ok(Box::new(kimi::create(config)?)),
+        "mistral" => Ok(Box::new(mistral::create(config)?)),
+        "ollama" => Ok(Box::new(ollama::create(config))),
         other => Err(Error::ConfigError(format!("unknown provider: {}", other))),
     }
 }

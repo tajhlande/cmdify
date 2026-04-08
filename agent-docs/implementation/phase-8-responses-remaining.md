@@ -63,10 +63,10 @@ Each is a thin struct following the Phase 6 pattern:
 
 | Provider | Module | Default Base URL | Key Env Var |
 |----------|--------|-----------------|-------------|
-| `zai` | `zai.rs` | `https://api.z.ai` | `ZAI_API_KEY` |
-| `minimax` | `minimax.rs` | `https://api.minimax.chat` | `MINIMAX_API_KEY` |
-| `qwen` | `qwen.rs` | `https://dashscope.aliyuncs.com/compatible-mode` | `QWEN_API_KEY` |
-| `kimi` | `kimi.rs` | `https://api.moonshot.cn` | `KIMI_API_KEY` |
+| `zai` | `zai.rs` | `https://api.z.ai/api/paas/v4` | `ZAI_API_KEY` |
+| `minimax` | `minimax.rs` | `https://api.minimax.io` | `MINIMAX_API_KEY` |
+| `qwen` | `qwen.rs` | `https://dashscope-intl.aliyuncs.com/compatible-mode` | `QWEN_API_KEY` |
+| `kimi` | `kimi.rs` | `https://api.moonshot.ai` | `KIMI_API_KEY` |
 | `mistral` | `mistral.rs` | `https://api.mistral.ai` | `MISTRAL_API_KEY` |
 | `ollama` | `ollama.rs` | `http://localhost:11434` | *(none — no auth)* |
 
@@ -115,8 +115,8 @@ pub fn create_provider(config: &Config) -> Result<Box<dyn Provider>> {
 
 ## Acceptance Criteria
 
-- [ ] `CMDIFY_PROVIDER_NAME=responses CMDIFY_MODEL_NAME=... CMDIFY_RESPONSES_URL=... cmdify find files` works
-- [ ] All 13 providers are functional (with appropriate API keys and models)
-- [ ] Unknown provider name produces a clear error message
-- [ ] All providers support tools where applicable
-- [ ] `make check` passes
+- [x] `CMDIFY_PROVIDER_NAME=responses CMDIFY_MODEL_NAME=... CMDIFY_RESPONSES_URL=... cmdify find files` works
+- [x] All 13 providers are functional (with appropriate API keys and models)
+- [x] Unknown provider name produces a clear error message
+- [x] All providers support tools where applicable
+- [x] `make check` passes

@@ -1226,3 +1226,450 @@ async fn user_agent_header_sent_by_gemini() {
     let response = provider.send_request(&messages, &[]).await.unwrap();
     assert_eq!(response.content, Some("echo hi".into()));
 }
+
+// --- Z.ai provider tests ---
+
+#[tokio::test]
+async fn zai_successful_completion() {
+    let server = MockServer::start().await;
+    let config = make_named_config("zai", &server.uri(), Some("zai-key"), "glm-4");
+
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{
+                "message": { "role": "assistant", "content": "find . -name '*.txt'" },
+                "finish_reason": "stop"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "find text files".into(),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("find . -name '*.txt'".into()));
+}
+
+#[tokio::test]
+async fn zai_missing_api_key() {
+    let config = make_named_config("zai", "https://api.z.ai/api/paas/v4", None, "glm-4");
+    let result = create_provider(&config);
+    let err = match result {
+        Err(e) => e.to_string(),
+        Ok(_) => panic!("expected error"),
+    };
+    assert!(err.contains("ZAI_API_KEY"));
+}
+
+#[tokio::test]
+async fn zai_provider_name() {
+    let config = make_named_config("zai", "https://api.z.ai/api/paas/v4", Some("key"), "glm-4");
+    let provider = create_provider(&config).unwrap();
+    assert_eq!(provider.name(), "zai");
+}
+
+#[tokio::test]
+async fn zai_supports_tools() {
+    let config = make_named_config("zai", "https://api.z.ai/api/paas/v4", Some("key"), "glm-4");
+    let provider = create_provider(&config).unwrap();
+    assert!(provider.supports_tools());
+}
+
+// --- Minimax provider tests ---
+
+#[tokio::test]
+async fn minimax_successful_completion() {
+    let server = MockServer::start().await;
+    let config = make_named_config("minimax", &server.uri(), Some("mm-key"), "minimax-abab6.5");
+
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{
+                "message": { "role": "assistant", "content": "ls -la" },
+                "finish_reason": "stop"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "list files".into(),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("ls -la".into()));
+}
+
+#[tokio::test]
+async fn minimax_missing_api_key() {
+    let config = make_named_config(
+        "minimax",
+        "https://api.minimax.chat",
+        None,
+        "minimax-abab6.5",
+    );
+    let result = create_provider(&config);
+    let err = match result {
+        Err(e) => e.to_string(),
+        Ok(_) => panic!("expected error"),
+    };
+    assert!(err.contains("MINIMAX_API_KEY"));
+}
+
+#[tokio::test]
+async fn minimax_provider_name() {
+    let config = make_named_config(
+        "minimax",
+        "https://api.minimax.chat",
+        Some("key"),
+        "minimax-abab6.5",
+    );
+    let provider = create_provider(&config).unwrap();
+    assert_eq!(provider.name(), "minimax");
+}
+
+#[tokio::test]
+async fn minimax_supports_tools() {
+    let config = make_named_config(
+        "minimax",
+        "https://api.minimax.chat",
+        Some("key"),
+        "minimax-abab6.5",
+    );
+    let provider = create_provider(&config).unwrap();
+    assert!(provider.supports_tools());
+}
+
+// --- Qwen provider tests ---
+
+#[tokio::test]
+async fn qwen_successful_completion() {
+    let server = MockServer::start().await;
+    let config = make_named_config("qwen", &server.uri(), Some("qw-key"), "qwen-turbo");
+
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{
+                "message": { "role": "assistant", "content": "ls /tmp" },
+                "finish_reason": "stop"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "list temp dir".into(),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("ls /tmp".into()));
+}
+
+#[tokio::test]
+async fn qwen_missing_api_key() {
+    let config = make_named_config(
+        "qwen",
+        "https://dashscope.aliyuncs.com/compatible-mode",
+        None,
+        "qwen-turbo",
+    );
+    let result = create_provider(&config);
+    let err = match result {
+        Err(e) => e.to_string(),
+        Ok(_) => panic!("expected error"),
+    };
+    assert!(err.contains("QWEN_API_KEY"));
+}
+
+#[tokio::test]
+async fn qwen_provider_name() {
+    let config = make_named_config(
+        "qwen",
+        "https://dashscope.aliyuncs.com/compatible-mode",
+        Some("key"),
+        "qwen-turbo",
+    );
+    let provider = create_provider(&config).unwrap();
+    assert_eq!(provider.name(), "qwen");
+}
+
+#[tokio::test]
+async fn qwen_supports_tools() {
+    let config = make_named_config(
+        "qwen",
+        "https://dashscope.aliyuncs.com/compatible-mode",
+        Some("key"),
+        "qwen-turbo",
+    );
+    let provider = create_provider(&config).unwrap();
+    assert!(provider.supports_tools());
+}
+
+// --- Kimi provider tests ---
+
+#[tokio::test]
+async fn kimi_successful_completion() {
+    let server = MockServer::start().await;
+    let config = make_named_config("kimi", &server.uri(), Some("km-key"), "moonshot-v1-8k");
+
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{
+                "message": { "role": "assistant", "content": "df -h" },
+                "finish_reason": "stop"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "disk usage".into(),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("df -h".into()));
+}
+
+#[tokio::test]
+async fn kimi_missing_api_key() {
+    let config = make_named_config("kimi", "https://api.moonshot.cn", None, "moonshot-v1-8k");
+    let result = create_provider(&config);
+    let err = match result {
+        Err(e) => e.to_string(),
+        Ok(_) => panic!("expected error"),
+    };
+    assert!(err.contains("KIMI_API_KEY"));
+}
+
+#[tokio::test]
+async fn kimi_provider_name() {
+    let config = make_named_config(
+        "kimi",
+        "https://api.moonshot.cn",
+        Some("key"),
+        "moonshot-v1-8k",
+    );
+    let provider = create_provider(&config).unwrap();
+    assert_eq!(provider.name(), "kimi");
+}
+
+#[tokio::test]
+async fn kimi_supports_tools() {
+    let config = make_named_config(
+        "kimi",
+        "https://api.moonshot.cn",
+        Some("key"),
+        "moonshot-v1-8k",
+    );
+    let provider = create_provider(&config).unwrap();
+    assert!(provider.supports_tools());
+}
+
+// --- Mistral provider tests ---
+
+#[tokio::test]
+async fn mistral_successful_completion() {
+    let server = MockServer::start().await;
+    let config = make_named_config(
+        "mistral",
+        &server.uri(),
+        Some("ms-key"),
+        "mistral-small-latest",
+    );
+
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{
+                "message": { "role": "assistant", "content": "uname -a" },
+                "finish_reason": "stop"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "system info".into(),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("uname -a".into()));
+}
+
+#[tokio::test]
+async fn mistral_missing_api_key() {
+    let config = make_named_config(
+        "mistral",
+        "https://api.mistral.ai",
+        None,
+        "mistral-small-latest",
+    );
+    let result = create_provider(&config);
+    let err = match result {
+        Err(e) => e.to_string(),
+        Ok(_) => panic!("expected error"),
+    };
+    assert!(err.contains("MISTRAL_API_KEY"));
+}
+
+#[tokio::test]
+async fn mistral_provider_name() {
+    let config = make_named_config(
+        "mistral",
+        "https://api.mistral.ai",
+        Some("key"),
+        "mistral-small-latest",
+    );
+    let provider = create_provider(&config).unwrap();
+    assert_eq!(provider.name(), "mistral");
+}
+
+#[tokio::test]
+async fn mistral_supports_tools() {
+    let config = make_named_config(
+        "mistral",
+        "https://api.mistral.ai",
+        Some("key"),
+        "mistral-small-latest",
+    );
+    let provider = create_provider(&config).unwrap();
+    assert!(provider.supports_tools());
+}
+
+// --- Ollama provider tests ---
+
+#[tokio::test]
+async fn ollama_successful_completion() {
+    let server = MockServer::start().await;
+    let config = make_named_config("ollama", &server.uri(), None, "llama3");
+
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{
+                "message": { "role": "assistant", "content": "ls" },
+                "finish_reason": "stop"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "list files".into(),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("ls".into()));
+}
+
+#[tokio::test]
+async fn ollama_no_api_key_required() {
+    let config = make_named_config("ollama", "http://localhost:11434", None, "llama3");
+    let result = create_provider(&config);
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn ollama_provider_name() {
+    let config = make_named_config("ollama", "http://localhost:11434", None, "llama3");
+    let provider = create_provider(&config).unwrap();
+    assert_eq!(provider.name(), "completions");
+}
+
+#[tokio::test]
+async fn ollama_supports_tools() {
+    let config = make_named_config("ollama", "http://localhost:11434", None, "llama3");
+    let provider = create_provider(&config).unwrap();
+    assert!(provider.supports_tools());
+}
+
+#[tokio::test]
+async fn ollama_tool_call_response() {
+    let server = MockServer::start().await;
+    let config = make_named_config("ollama", &server.uri(), None, "llama3");
+
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": "call_ollama1",
+                        "type": "function",
+                        "function": { "name": "find_command", "arguments": "{\"command\":\"fd\"}" }
+                    }]
+                },
+                "finish_reason": "tool_calls"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "search in files".into(),
+    }];
+    let tools = vec![ToolDefinition {
+        name: "find_command".into(),
+        description: "Find a command".into(),
+        parameters: json!({"type": "object"}),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &tools).await.unwrap();
+    assert!(response.content.is_none());
+    assert_eq!(response.tool_calls.len(), 1);
+    assert_eq!(response.tool_calls[0].name, "find_command");
+    assert_eq!(response.tool_calls[0].id, "call_ollama1");
+}
+
+#[tokio::test]
+async fn ollama_custom_base_url() {
+    let server = MockServer::start().await;
+    let config = make_named_config("ollama", &server.uri(), None, "llama3");
+
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "choices": [{
+                "message": { "role": "assistant", "content": "pwd" },
+                "finish_reason": "stop"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "where am i".into(),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("pwd".into()));
+}
+
+// --- Unknown provider error ---
+
+#[tokio::test]
+async fn unknown_provider_name() {
+    let config = make_named_config("nonexistent", "http://localhost", None, "model");
+    let result = create_provider(&config);
+    let err = match result {
+        Err(e) => e.to_string(),
+        Ok(_) => panic!("expected error"),
+    };
+    assert!(err.contains("unknown provider"));
+}

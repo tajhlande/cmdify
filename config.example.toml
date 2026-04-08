@@ -92,13 +92,13 @@ model_name = "gpt-5-nano"
 # Env var: MISTRAL_BASE_URL
 # mistral_base_url = "https://api.mistral.ai"
 
-# qwen — default: https://dashscope.aliyuncs.com/compatible-mode
+# qwen — default: https://dashscope-intl.aliyuncs.com/compatible-mode
 # Env var: QWEN_BASE_URL
-# qwen_base_url = "https://dashscope.aliyuncs.com/compatible-mode"
+# qwen_base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode"
 
-# kimi — default: https://api.moonshot.cn
+# kimi — default: https://api.moonshot.ai
 # Env var: KIMI_BASE_URL
-# kimi_base_url = "https://api.moonshot.cn"
+# kimi_base_url = "https://api.moonshot.ai"
 
 # openrouter — default: https://openrouter.ai/api
 # Env var: OPENROUTER_BASE_URL
@@ -108,13 +108,13 @@ model_name = "gpt-5-nano"
 # Env var: HUGGINGFACE_BASE_URL
 # huggingface_base_url = "https://router.huggingface.co/v1"
 
-# zai — default: https://api.z.ai
+# zai — default: https://api.z.ai/api/paas/v4
 # Env var: ZAI_BASE_URL
-# zai_base_url = "https://api.z.ai"
+# zai_base_url = "https://api.z.ai/api/paas/v4"
 
-# minimax — default: https://api.minimax.chat
+# minimax — default: https://api.minimax.io
 # Env var: MINIMAX_BASE_URL
-# minimax_base_url = "https://api.minimax.chat"
+# minimax_base_url = "https://api.minimax.io"
 
 # ollama — default: http://localhost:11434
 # Env var: OLLAMA_BASE_URL

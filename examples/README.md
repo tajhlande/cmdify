@@ -18,6 +18,24 @@ CI or `make check`.
 # HuggingFace (requires HUGGINGFACE_API_KEY)
 ./examples/test-huggingface.sh
 
+# Z.ai (requires ZAI_API_KEY)
+./examples/test-zai.sh
+
+# Minimax (requires MINIMAX_API_KEY)
+./examples/test-minimax.sh
+
+# Qwen (requires QWEN_API_KEY)
+./examples/test-qwen.sh
+
+# Kimi (requires KIMI_API_KEY)
+./examples/test-kimi.sh
+
+# Mistral (requires MISTRAL_API_KEY)
+./examples/test-mistral.sh
+
+# Ollama (local, no API key required)
+./examples/test-ollama.sh
+
 # OpenAI / Responses API (requires OPENAI_API_KEY)
 ./examples/test-openai.sh
 

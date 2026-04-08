@@ -21,7 +21,7 @@ This project is being built with OpenCode and GLM 5 Turbo.
 | 5     | ✅      | Safety Check               | Modular prompt, LLM guidance, semantic checks              | Three-layer safety, system prompt split, shlex tokenization |
 | 6     | ✅      | OpenRouter & HuggingFace   | Two more OpenAI-compat providers                           | Named provider pattern, shared completions impl |
 | 7     | ✅      |  Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats               | Three new providers, AuthStyle::QueryParam |
-| 8     | ⬜      | Responses & Remaining      | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
+| 8     | ✅      | Responses & Remaining      | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
 | 9     | ⬜      | Cross-Compilation          | Build targets for all platforms                            | Makefile dist, Raspbian arm, Apple Intel/Silicon |
 | 10    | ⬜      | CI/CD & Distribution       | GitHub Actions, releases, polish                           | Automated testing, release workflow, docs |
 | 11    | ⬜      | Interactive Setup          | `--setup` flag, first-run detection, config wizard         | Setup module, interactive prompts, config file creation |

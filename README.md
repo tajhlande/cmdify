@@ -18,8 +18,8 @@ This project is being built with OpenCode and GLM 5 Turbo.
 | 2     | ✅      | `find_command` Tool        | Add command discovery tool                                 | Tool trait, registry, tool call loop |
 | 3     | ✅      | `ask_user` Tool            | Add interactive clarification tool                         | Interactive stdin/stderr UX |
 | 4     | ✅      | Tool Levels                | Numbered tool level system, `--list-tools`                 | Progressive tool disclosure, config |
-| 5     | 📝      | Safety Check               | Modular prompt, LLM guidance, semantic checks              | Three-layer safety, system prompt split, shlex tokenization |
-| 6     | ⬜      | OpenRouter & HuggingFace   | Two more OpenAI-compat providers                           | Named provider pattern, shared completions impl |
+| 5     | ✅      | Safety Check               | Modular prompt, LLM guidance, semantic checks              | Three-layer safety, system prompt split, shlex tokenization |
+| 6     | ✅      | OpenRouter & HuggingFace   | Two more OpenAI-compat providers                           | Named provider pattern, shared completions impl |
 | 7     | ⬜      |  Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats               | Three new providers, AuthStyle::QueryParam |
 | 8     | ⬜      | Responses & Remaining      | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
 | 9     | ⬜      | Cross-Compilation          | Build targets for all platforms                            | Makefile dist, Raspbian arm, Apple Intel/Silicon |

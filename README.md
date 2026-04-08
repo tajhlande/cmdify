@@ -20,7 +20,7 @@ This project is being built with OpenCode and GLM 5 Turbo.
 | 4     | ✅      | Tool Levels                | Numbered tool level system, `--list-tools`                 | Progressive tool disclosure, config |
 | 5     | ✅      | Safety Check               | Modular prompt, LLM guidance, semantic checks              | Three-layer safety, system prompt split, shlex tokenization |
 | 6     | ✅      | OpenRouter & HuggingFace   | Two more OpenAI-compat providers                           | Named provider pattern, shared completions impl |
-| 7     | ⬜      |  Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats               | Three new providers, AuthStyle::QueryParam |
+| 7     | ✅      |  Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats               | Three new providers, AuthStyle::QueryParam |
 | 8     | ⬜      | Responses & Remaining      | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
 | 9     | ⬜      | Cross-Compilation          | Build targets for all platforms                            | Makefile dist, Raspbian arm, Apple Intel/Silicon |
 | 10    | ⬜      | CI/CD & Distribution       | GitHub Actions, releases, polish                           | Automated testing, release workflow, docs |
@@ -61,7 +61,7 @@ Set your provider and model, then run:
 
 ```sh
 export CMDIFY_PROVIDER_NAME=openai
-export CMDIFY_MODEL_NAME=gpt-4o
+export CMDIFY_MODEL_NAME=gpt-5-nano
 export OPENAI_API_KEY=sk-...
 
 cmdify "find all pdf files larger than 10MB"
@@ -84,7 +84,7 @@ Create a TOML file at `$XDG_CONFIG_HOME/cmdify/config.toml` (or `$HOME/.config/c
 
 ```toml
 provider_name = "openai"
-model_name = "gpt-4o"
+model_name = "gpt-5-nano"
 ```
 
 The config file is optional. If present, its values are used as defaults that environment variables 

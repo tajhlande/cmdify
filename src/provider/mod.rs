@@ -1,6 +1,99 @@
+macro_rules! thin_provider {
+    (
+        provider_name = $name:literal,
+        api_key_env = $key_env:literal,
+        default_base_url = $default_url:literal,
+        default_model = $default_model:literal,
+        endpoint_path = $endpoint:literal,
+        backend_mod = $backend_mod:ident,
+        backend_ty = $backend_ty:ident,
+    ) => {
+        use $crate::config::Config;
+        use $crate::error::Result;
+        use $crate::provider::$backend_mod::$backend_ty;
+
+        const API_KEY_ENV: &str = $key_env;
+        const ENDPOINT_PATH: &str = $endpoint;
+
+        pub fn create(config: &Config) -> Result<$backend_ty> {
+            let api_key = config
+                .provider_settings
+                .api_key
+                .as_deref()
+                .ok_or_else(|| {
+                    $crate::error::Error::ConfigError(format!(
+                        "{} is required for the {} provider",
+                        API_KEY_ENV, $name
+                    ))
+                })?
+                .to_string();
+
+            Ok(<$backend_ty>::with_options(
+                config,
+                $name,
+                ENDPOINT_PATH,
+                api_key,
+            ))
+        }
+
+        #[cfg(test)]
+        mod tests {
+            use super::*;
+            use $crate::config::{AuthStyle, ProviderSettings};
+            use $crate::provider::Provider;
+
+            const DEFAULT_BASE_URL: &str = $default_url;
+
+            fn make_config(base_url: &str, api_key: Option<&str>) -> Config {
+                Config {
+                    provider_name: $name.into(),
+                    model_name: $default_model.into(),
+                    max_tokens: 4096,
+                    system_prompt_override: None,
+                    spinner: 1,
+                    allow_unsafe: false,
+                    quiet: false,
+                    blind: false,
+                    no_tools: false,
+                    yolo: false,
+                    debug_level: 0,
+                    tool_level: 1,
+                    provider_settings: ProviderSettings {
+                        api_key: api_key.map(|k| k.into()),
+                        base_url: base_url.into(),
+                        auth_style: AuthStyle::Header {
+                            name: "Authorization".into(),
+                            prefix: "Bearer ".into(),
+                        },
+                    },
+                }
+            }
+
+            #[test]
+            fn create_with_key() {
+                let provider =
+                    create(&make_config("https://custom.url", Some("test-key"))).unwrap();
+                assert_eq!(provider.name(), $name);
+            }
+
+            #[test]
+            fn create_without_key_errors() {
+                let result = create(&make_config(DEFAULT_BASE_URL, None));
+                assert!(result.is_err());
+                assert!(result.unwrap_err().to_string().contains($key_env));
+            }
+        }
+    };
+}
+
+pub mod anthropic;
 pub mod completions;
+pub mod gemini;
+pub mod http;
 pub mod huggingface;
+pub mod openai;
 pub mod openrouter;
+pub mod responses;
 
 use async_trait::async_trait;
 
@@ -21,7 +114,6 @@ pub enum Message {
     },
     ToolResult {
         tool_call_id: String,
-        #[allow(dead_code)]
         name: String,
         content: String,
     },
@@ -74,6 +166,10 @@ pub trait Provider: Send + Sync {
 pub fn create_provider(config: &Config) -> Result<Box<dyn Provider>> {
     match config.provider_name.as_str() {
         "completions" => Ok(Box::new(completions::CompletionsProvider::new(config))),
+        "responses" => Ok(Box::new(responses::ResponsesProvider::new(config))),
+        "openai" => Ok(Box::new(openai::create(config)?)),
+        "anthropic" => Ok(Box::new(anthropic::create(config)?)),
+        "gemini" => Ok(Box::new(gemini::create(config)?)),
         "openrouter" => Ok(Box::new(openrouter::create(config)?)),
         "huggingface" => Ok(Box::new(huggingface::create(config)?)),
         other => Err(Error::ConfigError(format!("unknown provider: {}", other))),

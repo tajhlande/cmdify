@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use serde_json::json;
 
 use crate::config::{AuthStyle, Config};
-use crate::debug;
 use crate::debug_json;
 use crate::error::{Error, Result};
+use crate::provider::http::{send_and_parse, user_agent};
 use crate::provider::{
     FinishReason, Message, Provider, ProviderResponse, ToolCall, ToolDefinition,
 };
@@ -190,16 +190,14 @@ pub(crate) async fn send_completions_request(
     }
 
     let url = build_url_with_auth(req.base_url, req.auth_style, req.api_key, req.endpoint_path);
-    let user_agent = format!("cmdify/{}", env!("CARGO_PKG_VERSION"));
 
-    debug!("Sending request to {}", url);
     debug_json!("Request body", &body);
 
     let mut request = req
         .client
         .post(&url)
         .json(&body)
-        .header("User-Agent", &user_agent);
+        .header("User-Agent", user_agent());
     request = apply_auth_headers(request, req.auth_style, req.api_key);
 
     if let Some(headers) = req.extra_headers {
@@ -208,49 +206,7 @@ pub(crate) async fn send_completions_request(
         }
     }
 
-    let start = std::time::Instant::now();
-    let response = request.send().await?;
-    let elapsed = start.elapsed().as_millis();
-
-    let status = response.status();
-    let raw_body = response.text().await?;
-
-    debug!(
-        "Received response (status {} in {}ms)",
-        status.as_u16(),
-        elapsed
-    );
-
-    let body: serde_json::Value = match serde_json::from_str(&raw_body) {
-        Ok(v) => v,
-        Err(e) => {
-            debug!("Failed to decode response body as JSON: {}", e);
-            debug!("Raw response body:\n{}", raw_body);
-            return Err(Error::ProviderError(format!(
-                "error decoding response body: {}",
-                e
-            )));
-        }
-    };
-
-    if !status.is_success() {
-        debug_json!("Error response", &body);
-        let error_msg = body
-            .get("error")
-            .and_then(|e| e.get("message"))
-            .and_then(|m| m.as_str())
-            .unwrap_or("unknown error");
-        return Err(Error::ProviderError(format!(
-            "API returned {} {}: {}",
-            status.as_u16(),
-            status.canonical_reason().unwrap_or("Unknown"),
-            error_msg,
-        )));
-    }
-
-    debug_json!("Response body", &body);
-
-    parse_response(&body)
+    send_and_parse(request, &url, parse_response).await
 }
 
 pub const DEFAULT_ENDPOINT_PATH: &str = "/chat/completions";

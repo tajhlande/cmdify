@@ -30,7 +30,7 @@ Provide a first-run setup experience so users can configure `cmdify` interactive
 2. Prompt: "Select a provider (default: openai)"
    - List all 13 providers with numbers
    - Accept number or name
-3. Prompt: "Model name (default: gpt-4o): "
+3. Prompt: "Model name (default: gpt-5-nano): "
    - Provider-specific suggestions shown as hints
 4. Prompt: "Max tokens (default: 16384): "
    - Accept number or empty for default

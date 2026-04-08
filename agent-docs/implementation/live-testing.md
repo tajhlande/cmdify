@@ -212,7 +212,7 @@ make build
 CMDIFY_MODEL_NAME=llama3 CMDIFY_COMPLETIONS_URL=http://localhost:11434 ./examples/test-completions.sh
 
 # Test OpenAI
-CMDIFY_MODEL_NAME=gpt-4o-mini ./examples/test-openai.sh
+CMDIFY_MODEL_NAME=gpt-5-nano ./examples/test-openai.sh
 
 # Test Anthropic
 CMDIFY_MODEL_NAME=claude-sonnet-4-20250514 ./examples/test-anthropic.sh

@@ -18,8 +18,20 @@ CI or `make check`.
 # HuggingFace (requires HUGGINGFACE_API_KEY)
 ./examples/test-huggingface.sh
 
+# OpenAI / Responses API (requires OPENAI_API_KEY)
+./examples/test-openai.sh
+
+# Anthropic (requires ANTHROPIC_API_KEY)
+./examples/test-anthropic.sh
+
+# Gemini (requires GEMINI_API_KEY)
+./examples/test-gemini.sh
+
 # Generic completions / local Ollama (requires CMDIFY_COMPLETIONS_URL)
 CMDIFY_COMPLETIONS_URL=http://localhost:11434 ./examples/test-completions.sh
+
+# Generic Responses provider (requires CMDIFY_RESPONSES_URL)
+CMDIFY_RESPONSES_URL=https://your-endpoint.example.com ./examples/test-responses.sh
 ```
 
 ## Customization
@@ -39,7 +51,8 @@ CMDIFY_BIN=./target/debug/cmdify ./examples/test-completions.sh
 ## Cost Warning
 
 These scripts hit live APIs and may incur charges depending on your provider plan.
-OpenRouter and HuggingFace bill per-token. Local providers (Ollama, LM Studio) are free.
+OpenRouter, HuggingFace, OpenAI, and Anthropic bill per-token. Gemini has a free
+tier. Local providers (Ollama, LM Studio) are free.
 
 ## Adding New Providers
 

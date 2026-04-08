@@ -1,5 +1,5 @@
 use serde_json::json;
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use cmdify::config::{AuthStyle, Config, ProviderSettings};
@@ -58,6 +58,33 @@ fn make_named_config(
                 name: "Authorization".into(),
                 prefix: "Bearer ".into(),
             },
+        },
+    }
+}
+
+fn make_query_param_config(
+    provider_name: &str,
+    base_url: &str,
+    api_key: Option<&str>,
+    model: &str,
+) -> Config {
+    Config {
+        provider_name: provider_name.into(),
+        model_name: model.into(),
+        max_tokens: 4096,
+        system_prompt_override: None,
+        spinner: 1,
+        allow_unsafe: false,
+        quiet: false,
+        blind: false,
+        no_tools: false,
+        yolo: false,
+        debug_level: 0,
+        tool_level: 1,
+        provider_settings: ProviderSettings {
+            api_key: api_key.map(|k| k.into()),
+            base_url: base_url.into(),
+            auth_style: AuthStyle::QueryParam { name: "key".into() },
         },
     }
 }
@@ -559,6 +586,634 @@ async fn user_agent_header_sent_by_huggingface() {
             "choices": [{
                 "message": { "role": "assistant", "content": "echo hi" },
                 "finish_reason": "stop"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "say hi".into(),
+    }];
+    let response = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("echo hi".into()));
+}
+
+// --- Responses provider tests ---
+
+#[tokio::test]
+async fn responses_successful_completion() {
+    let server = MockServer::start().await;
+    let config = make_named_config("responses", &server.uri(), Some("test-key"), "gpt-5");
+
+    Mock::given(method("POST"))
+        .and(path("/v1/responses"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "output": [
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{ "type": "output_text", "text": "find . -name '*.pdf'" }]
+                }
+            ]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "find pdf files".into(),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("find . -name '*.pdf'".into()));
+    assert!(response.tool_calls.is_empty());
+}
+
+#[tokio::test]
+async fn responses_provider_name() {
+    let config = make_named_config("responses", "https://api.example.com", Some("key"), "model");
+    let provider = create_provider(&config).unwrap();
+    assert_eq!(provider.name(), "responses");
+}
+
+#[tokio::test]
+async fn responses_supports_tools() {
+    let config = make_named_config("responses", "https://api.example.com", Some("key"), "model");
+    let provider = create_provider(&config).unwrap();
+    assert!(provider.supports_tools());
+}
+
+#[tokio::test]
+async fn responses_tool_call_response() {
+    let server = MockServer::start().await;
+    let config = make_named_config("responses", &server.uri(), Some("key"), "gpt-5");
+
+    Mock::given(method("POST"))
+        .and(path("/v1/responses"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "output": [
+                {
+                    "type": "function_call",
+                    "call_id": "call_resp1",
+                    "name": "find_command",
+                    "arguments": "{\"command\":\"rg\"}"
+                }
+            ]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "search in files".into(),
+    }];
+    let tools = vec![ToolDefinition {
+        name: "find_command".into(),
+        description: "Find a command".into(),
+        parameters: json!({"type": "object"}),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &tools).await.unwrap();
+    assert!(response.content.is_none());
+    assert_eq!(response.tool_calls.len(), 1);
+    assert_eq!(response.tool_calls[0].name, "find_command");
+    assert_eq!(response.tool_calls[0].id, "call_resp1");
+}
+
+#[tokio::test]
+async fn responses_api_error() {
+    let server = MockServer::start().await;
+    let config = make_named_config("responses", &server.uri(), Some("bad-key"), "model");
+
+    Mock::given(method("POST"))
+        .and(path("/v1/responses"))
+        .respond_with(ResponseTemplate::new(401).set_body_json(json!({
+            "error": { "message": "Invalid API key" }
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "test".into(),
+    }];
+
+    let result: std::result::Result<ProviderResponse, Error> =
+        provider.send_request(&messages, &[]).await;
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("Invalid API key"));
+}
+
+// --- OpenAI provider tests ---
+
+#[tokio::test]
+async fn openai_successful_completion() {
+    let server = MockServer::start().await;
+    let config = make_named_config("openai", &server.uri(), Some("sk-test-key"), "gpt-5");
+
+    Mock::given(method("POST"))
+        .and(path("/v1/responses"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "output": [
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{ "type": "output_text", "text": "find . -name '*.rs'" }]
+                }
+            ]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "find rust files".into(),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("find . -name '*.rs'".into()));
+}
+
+#[tokio::test]
+async fn openai_missing_api_key() {
+    let config = make_named_config("openai", "https://api.openai.com", None, "gpt-5");
+    let result = create_provider(&config);
+    let err = match result {
+        Err(e) => e.to_string(),
+        Ok(_) => panic!("expected error"),
+    };
+    assert!(err.contains("OPENAI_API_KEY"));
+}
+
+#[tokio::test]
+async fn openai_provider_name() {
+    let config = make_named_config("openai", "https://api.openai.com", Some("key"), "gpt-5");
+    let provider = create_provider(&config).unwrap();
+    assert_eq!(provider.name(), "openai");
+}
+
+#[tokio::test]
+async fn openai_supports_tools() {
+    let config = make_named_config("openai", "https://api.openai.com", Some("key"), "gpt-5");
+    let provider = create_provider(&config).unwrap();
+    assert!(provider.supports_tools());
+}
+
+#[tokio::test]
+async fn openai_tool_call_response() {
+    let server = MockServer::start().await;
+    let config = make_named_config("openai", &server.uri(), Some("sk-key"), "gpt-5");
+
+    Mock::given(method("POST"))
+        .and(path("/v1/responses"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "output": [
+                {
+                    "type": "function_call",
+                    "call_id": "call_oai1",
+                    "name": "find_command",
+                    "arguments": "{\"command\":\"rg\"}"
+                }
+            ]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "search in files".into(),
+    }];
+    let tools = vec![ToolDefinition {
+        name: "find_command".into(),
+        description: "Find a command".into(),
+        parameters: json!({"type": "object"}),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &tools).await.unwrap();
+    assert!(response.content.is_none());
+    assert_eq!(response.tool_calls.len(), 1);
+    assert_eq!(response.tool_calls[0].name, "find_command");
+    assert_eq!(response.tool_calls[0].id, "call_oai1");
+}
+
+// --- Anthropic provider tests ---
+
+#[tokio::test]
+async fn anthropic_successful_completion() {
+    let server = MockServer::start().await;
+    let config = make_named_config(
+        "anthropic",
+        &server.uri(),
+        Some("sk-ant-key"),
+        "claude-sonnet-4-20250514",
+    );
+
+    Mock::given(method("POST"))
+        .and(path("/v1/messages"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "content": [
+                { "type": "text", "text": "ls -la" }
+            ],
+            "stop_reason": "end_turn"
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![
+        Message::System {
+            content: "You are helpful.".into(),
+        },
+        Message::User {
+            content: "list files".into(),
+        },
+    ];
+
+    let response: ProviderResponse = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("ls -la".into()));
+    assert!(response.tool_calls.is_empty());
+}
+
+#[tokio::test]
+async fn anthropic_missing_api_key() {
+    let config = make_named_config(
+        "anthropic",
+        "https://api.anthropic.com",
+        None,
+        "claude-sonnet-4-20250514",
+    );
+    let result = create_provider(&config);
+    let err = match result {
+        Err(e) => e.to_string(),
+        Ok(_) => panic!("expected error"),
+    };
+    assert!(err.contains("ANTHROPIC_API_KEY"));
+}
+
+#[tokio::test]
+async fn anthropic_provider_name() {
+    let config = make_named_config(
+        "anthropic",
+        "https://api.anthropic.com",
+        Some("key"),
+        "claude-sonnet-4-20250514",
+    );
+    let provider = create_provider(&config).unwrap();
+    assert_eq!(provider.name(), "anthropic");
+}
+
+#[tokio::test]
+async fn anthropic_supports_tools() {
+    let config = make_named_config(
+        "anthropic",
+        "https://api.anthropic.com",
+        Some("key"),
+        "claude-sonnet-4-20250514",
+    );
+    let provider = create_provider(&config).unwrap();
+    assert!(provider.supports_tools());
+}
+
+#[tokio::test]
+async fn anthropic_tool_call_response() {
+    let server = MockServer::start().await;
+    let config = make_named_config(
+        "anthropic",
+        &server.uri(),
+        Some("ant-key"),
+        "claude-sonnet-4-20250514",
+    );
+
+    Mock::given(method("POST"))
+        .and(path("/v1/messages"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "content": [
+                {
+                    "type": "tool_use",
+                    "id": "toolu_ant1",
+                    "name": "find_command",
+                    "input": { "command": "fd" }
+                }
+            ],
+            "stop_reason": "tool_use"
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "search in files".into(),
+    }];
+    let tools = vec![ToolDefinition {
+        name: "find_command".into(),
+        description: "Find a command".into(),
+        parameters: json!({"type": "object"}),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &tools).await.unwrap();
+    assert!(response.content.is_none());
+    assert_eq!(response.tool_calls.len(), 1);
+    assert_eq!(response.tool_calls[0].name, "find_command");
+    assert_eq!(response.tool_calls[0].id, "toolu_ant1");
+}
+
+#[tokio::test]
+async fn anthropic_api_error() {
+    let server = MockServer::start().await;
+    let config = make_named_config(
+        "anthropic",
+        &server.uri(),
+        Some("bad-key"),
+        "claude-sonnet-4-20250514",
+    );
+
+    Mock::given(method("POST"))
+        .and(path("/v1/messages"))
+        .respond_with(ResponseTemplate::new(401).set_body_json(json!({
+            "type": "error",
+            "error": { "type": "authentication_error", "message": "invalid x-api-key" }
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "test".into(),
+    }];
+
+    let result: std::result::Result<ProviderResponse, Error> =
+        provider.send_request(&messages, &[]).await;
+    assert!(result.is_err());
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("invalid x-api-key"));
+}
+
+// --- Gemini provider tests ---
+
+#[tokio::test]
+async fn gemini_successful_completion() {
+    let server = MockServer::start().await;
+    let config = make_query_param_config(
+        "gemini",
+        &server.uri(),
+        Some("gemini-key"),
+        "gemini-2.5-flash",
+    );
+
+    Mock::given(method("POST"))
+        .and(path_regex(
+            r"/v1beta/models/gemini-2.5-flash:generateContent",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [{ "text": "ls -la" }]
+                },
+                "finishReason": "STOP"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![
+        Message::System {
+            content: "You are helpful.".into(),
+        },
+        Message::User {
+            content: "list files".into(),
+        },
+    ];
+
+    let response: ProviderResponse = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("ls -la".into()));
+    assert!(response.tool_calls.is_empty());
+}
+
+#[tokio::test]
+async fn gemini_missing_api_key() {
+    let config = make_query_param_config(
+        "gemini",
+        "https://generativelanguage.googleapis.com",
+        None,
+        "gemini-2.5-flash",
+    );
+    let result = create_provider(&config);
+    let err = match result {
+        Err(e) => e.to_string(),
+        Ok(_) => panic!("expected error"),
+    };
+    assert!(err.contains("GEMINI_API_KEY"));
+}
+
+#[tokio::test]
+async fn gemini_provider_name() {
+    let config = make_query_param_config(
+        "gemini",
+        "https://generativelanguage.googleapis.com",
+        Some("key"),
+        "gemini-2.5-flash",
+    );
+    let provider = create_provider(&config).unwrap();
+    assert_eq!(provider.name(), "gemini");
+}
+
+#[tokio::test]
+async fn gemini_supports_tools() {
+    let config = make_query_param_config(
+        "gemini",
+        "https://generativelanguage.googleapis.com",
+        Some("key"),
+        "gemini-2.5-flash",
+    );
+    let provider = create_provider(&config).unwrap();
+    assert!(provider.supports_tools());
+}
+
+#[tokio::test]
+async fn gemini_tool_call_response() {
+    let server = MockServer::start().await;
+    let config = make_query_param_config(
+        "gemini",
+        &server.uri(),
+        Some("gemini-key"),
+        "gemini-2.5-flash",
+    );
+
+    Mock::given(method("POST"))
+        .and(path_regex(
+            r"/v1beta/models/gemini-2.5-flash:generateContent",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [{
+                        "functionCall": { "name": "find_command", "args": { "command": "fd" } }
+                    }]
+                },
+                "finishReason": "STOP"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "search in files".into(),
+    }];
+    let tools = vec![ToolDefinition {
+        name: "find_command".into(),
+        description: "Find a command".into(),
+        parameters: json!({"type": "object"}),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &tools).await.unwrap();
+    assert!(response.content.is_none());
+    assert_eq!(response.tool_calls.len(), 1);
+    assert_eq!(response.tool_calls[0].name, "find_command");
+    assert_eq!(response.tool_calls[0].id, "call_0");
+    assert_eq!(
+        response.finish_reason,
+        cmdify::provider::FinishReason::ToolCalls
+    );
+}
+
+#[tokio::test]
+async fn gemini_stop_for_text_not_tool_calls() {
+    let server = MockServer::start().await;
+    let config = make_query_param_config(
+        "gemini",
+        &server.uri(),
+        Some("gemini-key"),
+        "gemini-2.5-flash",
+    );
+
+    Mock::given(method("POST"))
+        .and(path_regex(
+            r"/v1beta/models/gemini-2.5-flash:generateContent",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [{ "text": "fd -e pdf" }]
+                },
+                "finishReason": "STOP"
+            }]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "find pdfs".into(),
+    }];
+
+    let response: ProviderResponse = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("fd -e pdf".into()));
+    assert_eq!(response.finish_reason, cmdify::provider::FinishReason::Stop);
+}
+
+#[tokio::test]
+async fn gemini_api_error() {
+    let server = MockServer::start().await;
+    let config =
+        make_query_param_config("gemini", &server.uri(), Some("bad-key"), "gemini-2.5-flash");
+
+    Mock::given(method("POST"))
+        .and(path_regex(
+            r"/v1beta/models/gemini-2.5-flash:generateContent",
+        ))
+        .respond_with(ResponseTemplate::new(400).set_body_json(json!({
+            "error": { "code": 400, "message": "API key not valid", "status": "INVALID_ARGUMENT" }
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "test".into(),
+    }];
+
+    let result: std::result::Result<ProviderResponse, Error> =
+        provider.send_request(&messages, &[]).await;
+    assert!(result.is_err());
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("API key not valid"));
+}
+
+// --- User-Agent for new providers ---
+
+#[tokio::test]
+async fn user_agent_header_sent_by_openai() {
+    let server = MockServer::start().await;
+    let config = make_named_config("openai", &server.uri(), Some("key"), "model");
+
+    Mock::given(method("POST"))
+        .and(path("/v1/responses"))
+        .and(UserAgentMatcher::new("cmdify/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "output": [
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{ "type": "output_text", "text": "echo hi" }]
+                }
+            ]
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "say hi".into(),
+    }];
+    let response = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("echo hi".into()));
+}
+
+#[tokio::test]
+async fn user_agent_header_sent_by_anthropic() {
+    let server = MockServer::start().await;
+    let config = make_named_config("anthropic", &server.uri(), Some("key"), "model");
+
+    Mock::given(method("POST"))
+        .and(path("/v1/messages"))
+        .and(UserAgentMatcher::new("cmdify/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "content": [{ "type": "text", "text": "echo hi" }],
+            "stop_reason": "end_turn"
+        })))
+        .mount(&server)
+        .await;
+
+    let provider = create_provider(&config).unwrap();
+    let messages = vec![Message::User {
+        content: "say hi".into(),
+    }];
+    let response = provider.send_request(&messages, &[]).await.unwrap();
+    assert_eq!(response.content, Some("echo hi".into()));
+}
+
+#[tokio::test]
+async fn user_agent_header_sent_by_gemini() {
+    let server = MockServer::start().await;
+    let config = make_query_param_config("gemini", &server.uri(), Some("key"), "model");
+
+    Mock::given(method("POST"))
+        .and(path_regex(r"/v1beta/models/model:generateContent"))
+        .and(UserAgentMatcher::new("cmdify/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "candidates": [{
+                "content": { "role": "model", "parts": [{ "text": "echo hi" }] },
+                "finishReason": "STOP"
             }]
         })))
         .mount(&server)

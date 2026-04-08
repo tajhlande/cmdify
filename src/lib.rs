@@ -14,6 +14,7 @@ pub mod error;
 pub mod logger;
 pub mod orchestrator;
 pub mod prompt;
+#[macro_use]
 pub mod provider;
 pub mod safety;
 pub mod spinner;

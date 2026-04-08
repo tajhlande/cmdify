@@ -19,7 +19,7 @@ The file is entirely optional. If it does not exist, all settings must come from
 
 ```toml
 provider_name = "openai"
-model_name = "gpt-4o"
+model_name = "gpt-5-nano"
 max_tokens = 4096
 system_prompt = "/path/to/custom_prompt.txt"
 ```

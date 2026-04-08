@@ -576,7 +576,7 @@ impl ProviderSettings {
                 "HUGGINGFACE_API_KEY",
                 "HUGGINGFACE_BASE_URL",
                 urls.and_then(|u| u.huggingface_base_url.clone()),
-                Some("https://api-inference.huggingface.co"),
+                Some("https://router.huggingface.co/v1"),
                 bearer,
                 sources,
                 false,
@@ -623,10 +623,6 @@ impl ProviderSettings {
     }
 }
 
-// TODO(Phase 4-6): Remove #[allow(dead_code)] once provider implementations
-// read auth_style to set headers/query params. Currently only the completions
-// provider exists and hardcodes "Authorization: Bearer" (see provider/completions.rs).
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum AuthStyle {
     Header { name: String, prefix: String },
@@ -637,7 +633,6 @@ pub enum AuthStyle {
 pub struct ProviderSettings {
     pub api_key: Option<String>,
     pub base_url: String,
-    #[allow(dead_code)]
     pub auth_style: AuthStyle,
 }
 

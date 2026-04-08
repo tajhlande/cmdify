@@ -95,7 +95,7 @@ pub struct HuggingFaceProvider {
 }
 ```
 
-- Default base URL: `https://api-inference.huggingface.co`
+- Default base URL: `https://router.huggingface.co/v1`
 - Auth header: `Authorization: Bearer {HUGGINGFACE_API_KEY}`
 - Delegates to `send_completions_request()`
 
@@ -107,6 +107,29 @@ pub struct HuggingFaceProvider {
 ### 6.6 API key required for named providers
 
 Unlike the generic `completions` provider (where the key is optional for local models), named providers like OpenRouter and HuggingFace require their API key. The `ProviderSettings::header()` constructor should error if the key env var is missing.
+
+### 6.7 Live integration test scripts (`examples/`)
+
+Create an `examples/` directory containing shell scripts that exercise each provider against a real API. These scripts are for manual validation only — they are NOT run by CI or `make check`. Each script:
+
+- Sets the required environment variables (`CMDIFY_PROVIDER_NAME`, `CMDIFY_MODEL_NAME`, provider-specific keys)
+- Invokes the `cmdify` binary with a simple prompt
+- Documents expected output and any prerequisites (API keys, model availability)
+- Is executable (`chmod +x`) with a standard shebang line
+
+Initial scripts:
+
+```
+examples/
+├── test-openrouter.sh      # OpenRouter end-to-end (requires OPENROUTER_API_KEY)
+├── test-huggingface.sh     # HuggingFace end-to-end (requires HUGGINGFACE_API_KEY)
+├── test-completions.sh     # Generic completions provider (requires CMDIFY_COMPLETIONS_KEY)
+└── README.md               # Instructions for running, expected behavior, key setup
+```
+
+The `examples/README.md` should explain that these scripts hit live APIs, may incur costs, and are intended for developer use during integration testing — not automated CI.
+
+> **Note:** Future phases that add new providers (Anthropic, Gemini, Qwen, Kimi, etc.) should follow the same pattern and add a corresponding `examples/test-<provider>.sh` script.
 
 ## Tests
 
@@ -120,10 +143,13 @@ Unlike the generic `completions` provider (where the key is optional for local m
 
 ## Acceptance Criteria
 
-- [ ] `CMDIFY_PROVIDER_NAME=openrouter CMDIFY_MODEL_NAME=... OPENROUTER_API_KEY=... cmdify find files` works
-- [ ] `CMDIFY_PROVIDER_NAME=huggingface CMDIFY_MODEL_NAME=... HUGGINGFACE_API_KEY=... cmdify find files` works
-- [ ] Both providers support tools (find_command, ask_user) via shared completions logic
-- [ ] Missing API key produces clear error message
-- [ ] Base URL can be overridden via `OPENROUTER_BASE_URL` / `HUGGINGFACE_BASE_URL`
-- [ ] All provider HTTP requests include `User-Agent: cmdify/<version>` header
-- [ ] `make check` passes
+- [x] `CMDIFY_PROVIDER_NAME=openrouter CMDIFY_MODEL_NAME=... OPENROUTER_API_KEY=... cmdify find files` works
+- [x] `CMDIFY_PROVIDER_NAME=huggingface CMDIFY_MODEL_NAME=... HUGGINGFACE_API_KEY=... cmdify find files` works
+- [x] Both providers support tools (find_command, ask_user) via shared completions logic
+- [x] Missing API key produces clear error message
+- [x] Base URL can be overridden via `OPENROUTER_BASE_URL` / `HUGGINGFACE_BASE_URL`
+- [x] All provider HTTP requests include `User-Agent: cmdify/<version>` header
+- [x] `examples/` directory exists with live integration test scripts for OpenRouter and HuggingFace
+- [x] `examples/README.md` documents how to run scripts and expected prerequisites
+- [x] `make check` passes
+- [x] Hand-tested against live OpenRouter and HuggingFace APIs

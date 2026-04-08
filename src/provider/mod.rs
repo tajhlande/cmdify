@@ -1,13 +1,12 @@
 pub mod completions;
+pub mod huggingface;
+pub mod openrouter;
 
 use async_trait::async_trait;
 
 use crate::config::Config;
 use crate::error::{Error, Result};
 
-// Canonical message types for the multi-turn conversation.
-// `ToolResult.name` is included for completeness but most providers don't
-// use it in the wire format — they only need `tool_call_id`.
 #[derive(Debug, Clone)]
 pub enum Message {
     System {
@@ -72,12 +71,11 @@ pub trait Provider: Send + Sync {
     fn name(&self) -> &str;
 }
 
-// TODO(Phase 4-6): Add provider implementations for openai, anthropic, gemini,
-// openrouter, huggingface, zai, minimax, qwen, kimi, mistral, ollama, responses.
-// Currently only the completions provider is implemented (Phase 1).
 pub fn create_provider(config: &Config) -> Result<Box<dyn Provider>> {
     match config.provider_name.as_str() {
-        "completions" => Ok(Box::new(completions::CompletionsProvider::new(config)?)),
+        "completions" => Ok(Box::new(completions::CompletionsProvider::new(config))),
+        "openrouter" => Ok(Box::new(openrouter::create(config)?)),
+        "huggingface" => Ok(Box::new(huggingface::create(config)?)),
         other => Err(Error::ConfigError(format!("unknown provider: {}", other))),
     }
 }

@@ -104,7 +104,7 @@ Named providers are thin wrappers that set the correct default base URL and auth
 | `anthropic` | `https://api.anthropic.com` | Anthropic Messages | `x-api-key: <ANTHROPIC_API_KEY>` |
 | `gemini` | `https://generativelanguage.googleapis.com` | Gemini | `?key=<GEMINI_API_KEY>` (query param) |
 | `openrouter` | `https://openrouter.ai/api` | OpenAI Completions | `Authorization: Bearer <OPENROUTER_API_KEY>` |
-| `huggingface` | `https://api-inference.huggingface.co` | OpenAI Completions | `Authorization: Bearer <HUGGINGFACE_API_KEY>` |
+| `huggingface` | `https://router.huggingface.co/v1` | OpenAI Completions | `Authorization: Bearer <HUGGINGFACE_API_KEY>` |
 | `zai` | `https://api.z.ai` | OpenAI Completions | `Authorization: Bearer <ZAI_API_KEY>` |
 | `minimax` | `https://api.minimax.chat` | OpenAI Completions | `Authorization: Bearer <MINIMAX_API_KEY>` |
 | `qwen` | `https://dashscope.aliyuncs.com/compatible-mode` | OpenAI Completions | `Authorization: Bearer <QWEN_API_KEY>` |

@@ -104,9 +104,9 @@ model_name = "gpt-4o"
 # Env var: OPENROUTER_BASE_URL
 # openrouter_base_url = "https://openrouter.ai/api"
 
-# huggingface — default: https://api-inference.huggingface.co
+# huggingface — default: https://router.huggingface.co/v1
 # Env var: HUGGINGFACE_BASE_URL
-# huggingface_base_url = "https://api-inference.huggingface.co"
+# huggingface_base_url = "https://router.huggingface.co/v1"
 
 # zai — default: https://api.z.ai
 # Env var: ZAI_BASE_URL

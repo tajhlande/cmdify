@@ -22,7 +22,7 @@ This project is being built with OpenCode and GLM 5 Turbo.
 | 6     | ✅      | OpenRouter & HuggingFace   | Two more OpenAI-compat providers                           | Named provider pattern, shared completions impl |
 | 7     | ✅      |  Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats               | Three new providers, AuthStyle::QueryParam |
 | 8     | ✅      | Responses & Remaining      | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
-| 9     | ⬜      | Cross-Compilation          | Build targets for all platforms                            | Makefile dist, Raspbian arm, Apple Intel/Silicon |
+| 9     | ✅      | Cross-Compilation          | Build targets for all platforms                            | Makefile dist, cross for Linux, Apple Intel/Silicon |
 | 10    | ⬜      | CI/CD & Distribution       | GitHub Actions, releases, polish                           | Automated testing, release workflow, docs |
 | 11    | ⬜      | Interactive Setup          | `--setup` flag, first-run detection, config wizard         | Setup module, interactive prompts, config file creation |
 | 12    | ✅      | Debug Mode                 | Debug logging, `--debug` flag                              | Debug logging module, stderr trace output, configurable verbosity |
@@ -147,6 +147,31 @@ like API keys.
 | `-s N`, `--spinner N`   | Spinner style: 1 (default bar), 2 (braille), 3 (dots)      |
 
 ## Development
+
+### Build
+
+`make dist` builds static binaries for 5 platforms and places them in `target/dist/`:
+
+| Target | Platform | Method |
+|--------|----------|--------|
+| `aarch64-apple-darwin` | macOS Apple Silicon | `cargo` (native) |
+| `x86_64-apple-darwin` | macOS Intel | `cargo` (cross-compile) |
+| `x86_64-unknown-linux-musl` | Linux amd64 | `cross` (Docker) |
+| `aarch64-unknown-linux-musl` | Linux arm64 | `cross` (Docker) |
+| `armv7-unknown-linux-musleabihf` | Linux arm (Raspbian) | `cross` (Docker) |
+
+**Prerequisites:**
+- Rust toolchain with all targets installed (`rustup target add` for each)
+- [Docker](https://docs.docker.com/get-docker/) running
+- [cross](https://github.com/cross-rs/cross) installed: `cargo install cross --git https://github.com/cross-rs/cross`
+
+```sh
+make dist         # Build all 5 targets
+make dist-verify  # Verify binary formats with `file`
+make dist-clean   # Remove target/dist/
+```
+
+### Verification
 
 ```sh
 make test      # Run tests

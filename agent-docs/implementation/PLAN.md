@@ -24,6 +24,7 @@ This plan breaks the full `cmdify` design into incremental, testable phases. Eac
 | 10 | ✅ | CI/CD & Distribution | GitHub Actions, releases, polish | Automated testing, release workflow, docs |
 | 11 | 📝 | Interactive Setup | `--setup` flag, first-run detection, config wizard | Setup module, interactive prompts, config file creation |
 | 12 | ✅ | Debug Mode | Debug logging, `--debug` flag | Debug logging module, stderr trace output, configurable verbosity |
+| 13 | ⬜ | Release Improvements | DMG for Apple, per-file checksums, versioned names | Better release artifacts |
 
 ---
 
@@ -117,5 +118,6 @@ Tools are organized into numbered levels (0–3) providing progressive environme
 - [Phase 10 — CI/CD & Distribution](./phase-10-ci-distribution.md)
 - [Phase 11 — Interactive Setup](./phase-11-interactive-setup.md)
 - [Phase 12 — Debug Mode](./phase-12-debug-mode.md)
+- [Phase 13 — Release Improvements](./phase-13-release-improvements.md)
 - [Test Strategy](./test-strategy.md)
 - [Live Testing](./live-testing.md)

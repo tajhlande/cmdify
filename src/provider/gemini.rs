@@ -9,9 +9,9 @@ use crate::provider::{
     FinishReason, Message, Provider, ProviderResponse, ToolCall, ToolDefinition,
 };
 
-#[cfg(test)]
-const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com";
-const API_KEY_ENV: &str = "GEMINI_API_KEY";
+#[allow(dead_code)]
+pub(crate) const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com";
+pub(crate) const API_KEY_ENV: &str = "GEMINI_API_KEY";
 
 pub fn create(config: &Config) -> Result<GeminiProvider> {
     let api_key = config

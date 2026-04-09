@@ -14,6 +14,27 @@ Provide a first-run setup experience so users can configure `cmdify` interactive
 - `--setup` flag triggers setup mode (reads existing values as defaults)
 - `--setup` on a non-interactive terminal exits with an error
 
+## Setup flow
+
+* Send user a greeting, ask if they want to setup a config file (Y/N)
+    * If no, exit with code -1
+    * If yes, continue
+* Ask what provider they want to use. Ideally, it is a picklist from which they can use up and down arrow keys to select a provider, or type to enter the name.
+* Have the user give the provider URL. For providers with a default URL, have the default be accepted with merely pressing enter, or else the user can type or paste a URL and press enter.
+* If the API key environment variable for that provider is already set, fetch the list of models from the provider.
+* Ask the user what model they want to use. If there is a list of models, present a picklist. Otherwise, a text entry. 
+* If the API key environment variable for the selected provider is not present, let the user know the name of the variable and that it needs to be set.
+* Ask the user to enter the max tokens, with the default value present.
+* Ask the user to select the spinner, from a pick list, with a default value present. 
+* Determine the config file location. 
+    * If `XDG_CONFIG_HOME` is set, use that to set the file location to $XDG_CONFIG_HOME/cmdify/config.toml
+    * Else if `HOME` is set, use that to set the file location to $HOME/.config/cmdify/config.toml
+* Ask the user to confirm the config file location, or else enter a new one
+* If the file already exists, ask the user if they want to overwrite it. Y to confirm, N to exit with -1
+* Write the config file
+* Display a message confirming that cmdify is ready for use, and give a short example
+* Exit with 0
+
 ## Behavior Matrix
 
 | Condition | Terminal is interactive | Terminal is NOT interactive |

@@ -11,10 +11,9 @@ use crate::provider::{
 
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 const ENDPOINT_PATH: &str = "/v1/messages";
-
-#[cfg(test)]
-const DEFAULT_BASE_URL: &str = "https://api.anthropic.com";
-const API_KEY_ENV: &str = "ANTHROPIC_API_KEY";
+#[allow(dead_code)]
+pub(crate) const DEFAULT_BASE_URL: &str = "https://api.anthropic.com";
+pub(crate) const API_KEY_ENV: &str = "ANTHROPIC_API_KEY";
 
 pub fn create(config: &Config) -> Result<AnthropicProvider> {
     let api_key = config

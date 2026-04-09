@@ -1,6 +1,9 @@
 use crate::config::Config;
 use crate::provider::completions::CompletionsProvider;
 
+#[allow(dead_code)]
+pub const DEFAULT_BASE_URL: &str = "http://localhost:11434";
+
 pub fn create(config: &Config) -> CompletionsProvider {
     CompletionsProvider::new(config)
 }

@@ -8,11 +8,13 @@ mod orchestrator;
 mod prompt;
 mod provider;
 mod safety;
+mod setup;
 mod spinner;
 mod tools;
 
 use clap::Parser;
 use cli::Cli;
+use std::io::IsTerminal;
 
 fn print_tool_levels() {
     println!("cmdify tool levels (default: 1)");
@@ -37,8 +39,9 @@ fn print_tool_levels() {
     println!("Use -q, -b, -n to disable individual tools or all tools.");
 }
 
-// Entry point: parse CLI → load config → apply CLI overrides → init debug →
-// start spinner → run orchestrator → safety gate → print result → optional yolo exec.
+// Entry point: parse CLI → setup check → load config → apply CLI overrides →
+// init debug → start spinner → run orchestrator → safety gate → print result
+// → optional yolo exec.
 // Safety details (pass/category/matched) are only shown when debug > 0.
 #[tokio::main]
 async fn main() {
@@ -47,6 +50,38 @@ async fn main() {
     if cli.list_tools {
         print_tool_levels();
         std::process::exit(0);
+    }
+
+    // --setup flag
+    if cli.setup {
+        if !std::io::stderr().is_terminal() {
+            eprintln!("error: --setup requires an interactive terminal");
+            std::process::exit(1);
+        }
+        let existing = setup::load_existing_config_if_present();
+        if let Err(e) = setup::run_interactive(existing.as_ref()) {
+            eprintln!("error: {}", e);
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    // First-run detection: auto-enter setup if no config, interactive, and not quiet
+    if !config::config_exists() && std::io::stderr().is_terminal() && !cli.quiet {
+        let existing = setup::load_existing_config_if_present();
+        if let Err(e) = setup::run_interactive(existing.as_ref()) {
+            eprintln!("error: {}", e);
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    // Non-interactive first-run: print hint unless quiet
+    if !config::config_exists() && !cli.quiet {
+        eprintln!(
+            "hint: no config file found at {}. run 'cmdify --setup' to configure.",
+            config::default_config_file_path().display()
+        );
     }
 
     if cli.prompt.is_empty() {

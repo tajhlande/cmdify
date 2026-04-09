@@ -70,11 +70,11 @@ model_name = "gpt-5-nano"
 
 # completions — no default, required when using the completions provider.
 # Env var: CMDIFY_COMPLETIONS_URL
-# completions_url = "http://localhost:8080/v1"
+# completions_base_url = "http://localhost:8080/v1"
 
 # responses — no default, required when using the responses provider.
 # Env var: CMDIFY_RESPONSES_URL
-# responses_url = ""
+# responses_base_url = ""
 
 # openai — default: https://api.openai.com
 # Env var: OPENAI_BASE_URL

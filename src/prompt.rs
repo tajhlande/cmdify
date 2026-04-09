@@ -151,9 +151,7 @@ fn parse_os_release() -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
-
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    use crate::config::ENV_LOCK;
 
     fn with_env_lock<F: FnOnce()>(f: F) {
         let lock = ENV_LOCK.lock();

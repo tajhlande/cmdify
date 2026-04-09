@@ -12,8 +12,11 @@ macro_rules! thin_provider {
         use $crate::error::Result;
         use $crate::provider::$backend_mod::$backend_ty;
 
-        const API_KEY_ENV: &str = $key_env;
-        const ENDPOINT_PATH: &str = $endpoint;
+        pub(crate) const API_KEY_ENV: &str = $key_env;
+        #[allow(dead_code)]
+        pub(crate) const DEFAULT_BASE_URL: &str = $default_url;
+        #[allow(dead_code)]
+        pub(crate) const ENDPOINT_PATH: &str = $endpoint;
 
         pub fn create(config: &Config) -> Result<$backend_ty> {
             let api_key = config
@@ -41,8 +44,6 @@ macro_rules! thin_provider {
             use super::*;
             use $crate::config::{AuthStyle, ProviderSettings};
             use $crate::provider::Provider;
-
-            const DEFAULT_BASE_URL: &str = $default_url;
 
             fn make_config(base_url: &str, api_key: Option<&str>) -> Config {
                 Config {

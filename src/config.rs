@@ -21,22 +21,31 @@ pub struct ConfigSource {
 // file itself, only simple key-value pairs are supported (no per-provider tables);
 // provider-specific URLs live under `[providers]`.
 fn config_file_path() -> Option<PathBuf> {
+    let p = default_config_file_path();
+    if p.exists() {
+        Some(p)
+    } else {
+        None
+    }
+}
+
+pub(crate) fn config_dir() -> PathBuf {
     if let Ok(xdg) = env::var("XDG_CONFIG_HOME") {
-        let p = PathBuf::from(xdg).join("cmdify").join("config.toml");
-        if p.exists() {
-            return Some(p);
-        }
+        PathBuf::from(xdg).join("cmdify")
+    } else if let Ok(home) = env::var("HOME") {
+        PathBuf::from(home).join(".config").join("cmdify")
+    } else {
+        PathBuf::from(".cmdify")
     }
-    if let Ok(home) = env::var("HOME") {
-        let p = PathBuf::from(home)
-            .join(".config")
-            .join("cmdify")
-            .join("config.toml");
-        if p.exists() {
-            return Some(p);
-        }
-    }
-    None
+}
+
+pub(crate) fn default_config_file_path() -> PathBuf {
+    config_dir().join("config.toml")
+}
+
+#[allow(dead_code)]
+pub(crate) fn config_exists() -> bool {
+    default_config_file_path().exists()
 }
 
 fn load_file_config(path: &Path) -> Result<FileConfig> {
@@ -256,10 +265,10 @@ fn resolve_provider_settings(
     })
 }
 
-#[derive(Debug, Default, Deserialize, Clone)]
-struct ProviderUrls {
-    completions_url: Option<String>,
-    responses_url: Option<String>,
+#[derive(Debug, Default, Deserialize, Clone, PartialEq, Eq)]
+pub(crate) struct ProviderUrls {
+    completions_base_url: Option<String>,
+    responses_base_url: Option<String>,
     openai_base_url: Option<String>,
     anthropic_base_url: Option<String>,
     gemini_base_url: Option<String>,
@@ -273,22 +282,22 @@ struct ProviderUrls {
     ollama_base_url: Option<String>,
 }
 
-#[derive(Debug, Default, Deserialize, Clone)]
-struct FileConfig {
-    provider_name: Option<String>,
-    model_name: Option<String>,
-    max_tokens: Option<u32>,
-    system_prompt_file: Option<String>,
-    spinner: Option<u8>,
-    allow_unsafe: Option<bool>,
-    quiet: Option<bool>,
-    blind: Option<bool>,
-    no_tools: Option<bool>,
-    yolo: Option<bool>,
-    debug: Option<bool>,
-    tool_level: Option<u8>,
+#[derive(Debug, Default, Deserialize, Clone, PartialEq, Eq)]
+pub(crate) struct FileConfig {
+    pub(crate) provider_name: Option<String>,
+    pub(crate) model_name: Option<String>,
+    pub(crate) max_tokens: Option<u32>,
+    pub(crate) system_prompt_file: Option<String>,
+    pub(crate) spinner: Option<u8>,
+    pub(crate) allow_unsafe: Option<bool>,
+    pub(crate) quiet: Option<bool>,
+    pub(crate) blind: Option<bool>,
+    pub(crate) no_tools: Option<bool>,
+    pub(crate) yolo: Option<bool>,
+    pub(crate) debug: Option<bool>,
+    pub(crate) tool_level: Option<u8>,
     #[serde(default)]
-    providers: ProviderUrls,
+    pub(crate) providers: ProviderUrls,
 }
 
 // Overall precedence for every setting:
@@ -500,7 +509,7 @@ impl ProviderSettings {
             "completions" => resolve_provider_settings(
                 "CMDIFY_COMPLETIONS_KEY",
                 "CMDIFY_COMPLETIONS_URL",
-                urls.and_then(|u| u.completions_url.clone()),
+                urls.and_then(|u| u.completions_base_url.clone()),
                 None,
                 bearer,
                 sources,
@@ -612,7 +621,7 @@ impl ProviderSettings {
             "responses" => resolve_provider_settings(
                 "CMDIFY_RESPONSES_KEY",
                 "CMDIFY_RESPONSES_URL",
-                urls.and_then(|u| u.responses_url.clone()),
+                urls.and_then(|u| u.responses_base_url.clone()),
                 None,
                 bearer,
                 sources,
@@ -654,12 +663,12 @@ pub struct Config {
 }
 
 #[cfg(test)]
+pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
-    use std::sync::Mutex;
-
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn with_env_lock<F: FnOnce()>(f: F) {
         let _lock = ENV_LOCK.lock().unwrap();
@@ -748,7 +757,7 @@ mod tests {
     }
 
     #[test]
-    fn missing_completions_url() {
+    fn missing_completions_base_url() {
         with_env_lock(|| {
             env::set_var("CMDIFY_PROVIDER_NAME", "completions");
             env::set_var("CMDIFY_MODEL_NAME", "llama3");

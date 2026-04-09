@@ -69,6 +69,9 @@ pub struct Cli {
     )]
     pub spinner: Option<u8>,
 
+    #[arg(long = "setup", help = "Run interactive setup wizard")]
+    pub setup: bool,
+
     #[arg(
         trailing_var_arg = true,
         help = "Natural language description of the command to generate"
@@ -268,5 +271,24 @@ mod tests {
     fn list_tools_default_false() {
         let cli = Cli::try_parse_from(["cmdify", "find files"]).unwrap();
         assert!(!cli.list_tools);
+    }
+
+    #[test]
+    fn parse_setup_long() {
+        let cli = Cli::try_parse_from(["cmdify", "--setup"]).unwrap();
+        assert!(cli.setup);
+    }
+
+    #[test]
+    fn setup_default_false() {
+        let cli = Cli::try_parse_from(["cmdify", "find files"]).unwrap();
+        assert!(!cli.setup);
+    }
+
+    #[test]
+    fn help_includes_setup() {
+        let mut cmd = Cli::command();
+        let help = cmd.render_help().to_string();
+        assert!(help.contains("setup"));
     }
 }

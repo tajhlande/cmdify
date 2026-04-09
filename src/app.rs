@@ -180,6 +180,7 @@ mod tests {
             yolo,
             debug,
             spinner: None,
+            setup: false,
             prompt: vec!["test".into()],
         };
         apply_cli_overrides(&cli, base_config())
@@ -250,6 +251,7 @@ mod tests {
             yolo: false,
             debug: 0,
             spinner: None,
+            setup: false,
             prompt: vec!["test".into()],
         };
         let (config, _) = apply_cli_overrides(&cli, base_config());
@@ -271,6 +273,7 @@ mod tests {
             yolo: false,
             debug: 0,
             spinner: None,
+            setup: false,
             prompt: vec!["test".into()],
         };
         let (config, _) = apply_cli_overrides(&cli, config);
@@ -301,6 +304,7 @@ mod tests {
             yolo: false,
             debug: 2,
             spinner: None,
+            setup: false,
             prompt: vec!["test".into()],
         };
         let (config, _) = apply_cli_overrides(&cli, config);
@@ -335,6 +339,7 @@ mod tests {
             yolo: false,
             debug: 0,
             spinner: None,
+            setup: false,
             prompt: vec!["test".into()],
         };
         let (config, _) = apply_cli_overrides(&cli, config);

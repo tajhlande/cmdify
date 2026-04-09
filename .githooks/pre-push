@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cargo_toml_version() {
+  sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1
+}
+
+cargo_lock_version() {
+  local in_pkg=0
+  while IFS= read -r line; do
+    case "$line" in
+      '[[package]]')
+        in_pkg=1
+        continue
+        ;;
+      '['*']')
+        in_pkg=0
+        continue
+        ;;
+    esac
+    if [[ $in_pkg -eq 1 ]] && [[ "$line" == 'name = "cmdify"' ]]; then
+      in_pkg=2
+      continue
+    fi
+    if [[ $in_pkg -eq 2 ]] && [[ "$line" == version\ * ]]; then
+      sed -n 's/^version = "\(.*\)"/\1/p' <<< "$line"
+      return 0
+    fi
+  done < Cargo.lock
+  return 1
+}
+
+toml_ver="$(cargo_toml_version)"
+lock_ver="$(cargo_lock_version)"
+
+if [[ "$toml_ver" != "$lock_ver" ]]; then
+  echo "ERROR: Cargo.toml version ($toml_ver) != Cargo.lock version ($lock_ver)"
+  exit 1
+fi
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [[ "$local_ref" != refs/tags/v* ]]; then
+    continue
+  fi
+
+  tag_ver="${local_ref#refs/tags/v}"
+  if [[ "$tag_ver" != "$toml_ver" ]]; then
+    echo "ERROR: tag version ($tag_ver) != Cargo.toml version ($toml_ver)"
+    exit 1
+  fi
+done
+
+exit 0

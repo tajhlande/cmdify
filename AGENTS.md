@@ -73,7 +73,21 @@
 
 ## Build process
 
+- `make build` — release build
+- `make dev` — debug build
+- `make test` — run tests
+- `make lint` — clippy + fmt check
+- `make check` — lint + test (must pass before declaring a task done)
+- `make install` — install to `~/.cargo/bin`
+- `make dist` — build all platform binaries to `target/dist/`
+- `make dist-verify` — verify binary formats
+- `make dist-clean` — remove `target/dist/`
+- `make fmt` — auto-format code
+
 ## Deployments
+
+- **CI**: GitHub Actions runs `cargo fmt --check`, `cargo clippy -- -D warnings`, and `cargo test` on every push to main and every PR (ubuntu-latest + macos-latest).
+- **Release**: GitHub Actions builds all 5 targets on git tag push (`v*`). Linux targets use `cross` (Docker); macOS targets use native `cargo`. Artifacts are published as tar.gz with SHA256 checksums to GitHub Releases.
 
 ## MCP tools
 

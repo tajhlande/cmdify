@@ -21,7 +21,7 @@ This plan breaks the full `cmdify` design into incremental, testable phases. Eac
 | 7 | ✅ | Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats | Three new providers, AuthStyle::QueryParam |
 | 8 | ✅ | Responses & Remaining | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
 | 9 | ✅ | Cross-Compilation | Build targets for all platforms | Makefile dist, cross for Linux, Apple Intel/Silicon |
-| 10 | ⬜ | CI/CD & Distribution | GitHub Actions, releases, polish | Automated testing, release workflow, docs |
+| 10 | ✅ | CI/CD & Distribution | GitHub Actions, releases, polish | Automated testing, release workflow, docs |
 | 11 | 📝 | Interactive Setup | `--setup` flag, first-run detection, config wizard | Setup module, interactive prompts, config file creation |
 | 12 | ✅ | Debug Mode | Debug logging, `--debug` flag | Debug logging module, stderr trace output, configurable verbosity |
 

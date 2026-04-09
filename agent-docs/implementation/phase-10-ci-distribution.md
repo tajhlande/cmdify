@@ -141,8 +141,18 @@ Fill in the two empty stub sections:
 
 ## Acceptance Criteria
 
-- [ ] CI runs on every push to main and every PR (test, clippy, fmt)
-- [ ] Release workflow builds all 5 targets and publishes to GitHub Releases on tag push
-- [ ] README provides clear getting-started instructions
-- [ ] AGENTS.md has no empty stub sections
-- [ ] `make check` passes
+- [x] CI runs on every push to main and every PR (test, clippy, fmt)
+- [x] Release workflow builds all 5 targets and publishes to GitHub Releases on tag push
+- [x] README provides clear getting-started instructions
+- [x] AGENTS.md has no empty stub sections
+- [x] `make check` passes
+
+## Implementation Notes
+
+### Deviations from spec
+
+- **CI workflow**: Used a matrix strategy (`os: [ubuntu-latest, macos-latest]`) instead of separate `check` and `cross-check` jobs, reducing duplication.
+- **Release workflow Linux builds**: Used `cross` (Docker-based) instead of native `cargo build` with musl-tools, per Phase 9 decision. `aws-lc-sys` (reqwest/rustls TLS backend) requires target-specific C compilers that are painful to install natively; `cross` Docker images include everything needed.
+- **Release artifacts**: Binaries are packaged as tar.gz with SHA256 checksums, rather than publishing raw binaries. `generate_release_notes: true` auto-generates the release body from commit messages.
+- **Man page generation**: Skipped — README provides comprehensive usage documentation. Can be added later if needed.
+- **Version**: Bumped to 0.10.0 per PLAN.md versioning convention.

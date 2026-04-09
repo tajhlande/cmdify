@@ -23,7 +23,7 @@ This project is being built with OpenCode and GLM 5 Turbo.
 | 7     | ✅      |  Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats               | Three new providers, AuthStyle::QueryParam |
 | 8     | ✅      | Responses & Remaining      | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
 | 9     | ✅      | Cross-Compilation          | Build targets for all platforms                            | Makefile dist, cross for Linux, Apple Intel/Silicon |
-| 10    | ⬜      | CI/CD & Distribution       | GitHub Actions, releases, polish                           | Automated testing, release workflow, docs |
+| 10    | ✅      | CI/CD & Distribution       | GitHub Actions, releases, polish                           | Automated testing, release workflow, docs |
 | 11    | ⬜      | Interactive Setup          | `--setup` flag, first-run detection, config wizard         | Setup module, interactive prompts, config file creation |
 | 12    | ✅      | Debug Mode                 | Debug logging, `--debug` flag                              | Debug logging module, stderr trace output, configurable verbosity |
 
@@ -34,18 +34,23 @@ This project is being built with OpenCode and GLM 5 Turbo.
 - **Zero runtime deps** — Static binary via Rust + rustls. No OpenSSL, no shared libraries.
 - **Pipe-friendly** — All interactive prompts go to stderr; only the final command goes to stdout, so `$(cmdify "find all pdf files")` works.
 
-## Building
+## Installation
 
-Requires [Rust](https://rustup.rs/).
+**From GitHub Releases** (recommended — no Rust toolchain needed):
+
+1. Go to the [latest release](https://github.com/tajh/cmdify/releases/latest)
+2. Download the tar.gz for your platform
+3. Extract and move `cmdify` to a directory on your `$PATH`
 
 ```sh
-# Release build
-make build
+# Example for macOS Apple Silicon:
+tar xzf cmdify-aarch64-apple-darwin.tar.gz
+sudo mv cmdify /usr/local/bin/
+```
 
-# Debug build
-make dev
+**From source** (requires [Rust](https://rustup.rs/)):
 
-# Install to ~/.cargo/bin
+```sh
 make install
 ```
 

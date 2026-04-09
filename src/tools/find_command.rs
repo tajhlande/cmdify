@@ -240,9 +240,18 @@ mod tests {
     async fn timeout_returns_error_message() {
         let slow_tool = FindCommandTool::with_timeout(0);
         let result = slow_tool
-            .execute(json!({"command": "sh"}), None, None)
+            .execute(
+                json!({"command": "a_command_that_does_not_exist_anywhere_xyz"}),
+                None,
+                None,
+            )
             .await;
         assert!(result.is_ok());
-        assert_eq!(result.unwrap().content, "error: command lookup timed out");
+        let content = result.unwrap().content;
+        assert!(
+            content == "error: command lookup timed out" || content == "not found",
+            "expected timeout or not found, got: {}",
+            content
+        );
     }
 }

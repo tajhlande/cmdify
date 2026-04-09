@@ -42,14 +42,22 @@ If the last command shows a diff, `Cargo.lock` was out of sync with `Cargo.toml`
 git add -A
 git commit -m "prepare release v0.11.0"
 ```
+### 5. Push to main
 
-### 5. Tag and push
+Before tagging, push the main branch. 
+Go to the repository's **Actions** tab on GitHub. Wait for the Github CI action to finish and pass successfully. 
+
+```sh
+git push github HEAD
+```
+
+### 6. Tag and push
 
 The tag **must** start with `v` and match the version in `Cargo.toml`:
 
 ```sh
 git tag v0.11.0
-git push && git push --tags
+git push --tags github 
 ```
 
 ### 6. Monitor the build

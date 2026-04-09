@@ -1,5 +1,8 @@
 # cmdify
 
+[![CI](https://github.com/tajhlande/cmdify/actions/workflows/ci.yml/badge.svg)](https://github.com/tajhlande/cmdify/actions/workflows/ci.yml)
+[![Release](https://github.com/tajhlande/cmdify/actions/workflows/release.yml/badge.svg)](https://github.com/tajhlande/cmdify/actions/workflows/release.yml)
+
 Turn natural language into shell commands with AI.
 
 `cmdify` sends your plain-English description to an LLM and gets back a ready-to-run shell command. It supports multiple LLM providers, interactive clarification when the model needs more info, and command discovery to verify tools exist on your system.
@@ -38,7 +41,7 @@ This project is being built with OpenCode and GLM 5 Turbo.
 
 **From GitHub Releases** (recommended — no Rust toolchain needed):
 
-1. Go to the [latest release](https://github.com/tajh/cmdify/releases/latest)
+1. Go to the [latest release](https://github.com/tajhlande/cmdify/releases/latest)
 2. Download the tar.gz for your platform
 3. Extract and move `cmdify` to a directory on your `$PATH`
 

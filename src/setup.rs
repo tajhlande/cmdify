@@ -474,6 +474,43 @@ fn display_api_key_hint<R: SetupIo + ?Sized>(io: &R, provider_name: &str) {
     }
 }
 
+pub(crate) fn env_sufficient_for_run() -> bool {
+    let provider = match env::var("CMDIFY_PROVIDER_NAME") {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+
+    if env::var("CMDIFY_MODEL_NAME").is_err() {
+        return false;
+    }
+
+    let key_optional_providers = ["ollama", "completions", "responses"];
+    if key_optional_providers.contains(&provider.as_str()) {
+        if provider == "completions" && env::var("CMDIFY_COMPLETIONS_KEY").is_err() {
+            eprintln!("warning: no CMDIFY_COMPLETIONS_KEY set. Your provider may require one.");
+        }
+        if provider == "responses" && env::var("CMDIFY_RESPONSES_KEY").is_err() {
+            eprintln!("warning: no CMDIFY_RESPONSES_KEY set. Your provider may require one.");
+        }
+        return true;
+    }
+
+    let p = match resolve_provider(&provider) {
+        Some(p) => p,
+        None => return false,
+    };
+
+    if p.key_env_var.is_empty() {
+        return true;
+    }
+
+    if env::var(p.key_env_var).is_err() {
+        return false;
+    }
+
+    true
+}
+
 pub(crate) fn run_interactive(existing: Option<&FileConfig>) -> Result<()> {
     run_interactive_with_io(&TerminalIo, existing)
 }
@@ -490,6 +527,13 @@ pub(crate) fn run_interactive_with_io<R: SetupIo + ?Sized>(
     };
 
     if !inputs.overwrite {
+        io.eprint("Setup cancelled.\n");
+        std::process::exit(1);
+    }
+
+    display_summary(io, &inputs);
+
+    if !prompt_yes_no(io, "Write config file?", true)? {
         io.eprint("Setup cancelled.\n");
         std::process::exit(1);
     }
@@ -770,6 +814,7 @@ mod tests {
             "",
             "1",
             config_path.to_str().unwrap(),
+            "y",
         ];
         let io = MockIo::new(responses);
 
@@ -810,5 +855,79 @@ mod tests {
         let content_after = std::fs::read_to_string(&config_path).unwrap();
         assert_eq!(content_before, content_after);
         assert_eq!(content_after, "existing");
+    }
+
+    fn clear_cmdify_env() {
+        for var in [
+            "CMDIFY_PROVIDER_NAME",
+            "CMDIFY_MODEL_NAME",
+            "CMDIFY_COMPLETIONS_KEY",
+            "CMDIFY_RESPONSES_KEY",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+        ] {
+            std::env::remove_var(var);
+        }
+    }
+
+    #[test]
+    fn env_sufficient_missing_provider_returns_false() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        clear_cmdify_env();
+        assert!(!env_sufficient_for_run());
+    }
+
+    #[test]
+    fn env_sufficient_missing_model_returns_false() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        clear_cmdify_env();
+        std::env::set_var("CMDIFY_PROVIDER_NAME", "openai");
+        assert!(!env_sufficient_for_run());
+    }
+
+    #[test]
+    fn env_sufficient_missing_key_returns_false() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        clear_cmdify_env();
+        std::env::set_var("CMDIFY_PROVIDER_NAME", "openai");
+        std::env::set_var("CMDIFY_MODEL_NAME", "gpt-4o");
+        assert!(!env_sufficient_for_run());
+    }
+
+    #[test]
+    fn env_sufficient_openai_with_key_returns_true() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        clear_cmdify_env();
+        std::env::set_var("CMDIFY_PROVIDER_NAME", "openai");
+        std::env::set_var("CMDIFY_MODEL_NAME", "gpt-4o");
+        std::env::set_var("OPENAI_API_KEY", "sk-test");
+        assert!(env_sufficient_for_run());
+    }
+
+    #[test]
+    fn env_sufficient_ollama_no_key_needed() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        clear_cmdify_env();
+        std::env::set_var("CMDIFY_PROVIDER_NAME", "ollama");
+        std::env::set_var("CMDIFY_MODEL_NAME", "llama3");
+        assert!(env_sufficient_for_run());
+    }
+
+    #[test]
+    fn env_sufficient_completions_no_key_warns() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        clear_cmdify_env();
+        std::env::set_var("CMDIFY_PROVIDER_NAME", "completions");
+        std::env::set_var("CMDIFY_MODEL_NAME", "llama3");
+        assert!(env_sufficient_for_run());
+    }
+
+    #[test]
+    fn env_sufficient_unknown_provider_returns_false() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        clear_cmdify_env();
+        std::env::set_var("CMDIFY_PROVIDER_NAME", "fake");
+        std::env::set_var("CMDIFY_MODEL_NAME", "model");
+        assert!(!env_sufficient_for_run());
     }
 }

@@ -66,8 +66,13 @@ async fn main() {
         return;
     }
 
-    // First-run detection: auto-enter setup if no config, interactive, and not quiet
-    if !config::config_exists() && std::io::stderr().is_terminal() && !cli.quiet {
+    // First-run detection: auto-enter setup if no config, interactive, not quiet,
+    // and env vars aren't sufficient to run
+    if !config::config_exists()
+        && std::io::stderr().is_terminal()
+        && !cli.quiet
+        && !setup::env_sufficient_for_run()
+    {
         let existing = setup::load_existing_config_if_present();
         if let Err(e) = setup::run_interactive(existing.as_ref()) {
             eprintln!("error: {}", e);
@@ -76,8 +81,8 @@ async fn main() {
         return;
     }
 
-    // Non-interactive first-run: print hint unless quiet
-    if !config::config_exists() && !cli.quiet {
+    // Non-interactive first-run: print hint unless quiet or env vars suffice
+    if !config::config_exists() && !cli.quiet && !setup::env_sufficient_for_run() {
         eprintln!(
             "hint: no config file found at {}. run 'cmdify --setup' to configure.",
             config::default_config_file_path().display()

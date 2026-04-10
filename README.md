@@ -11,38 +11,22 @@ I built this tool for two reasons:
 1. I wanted a tool like this, with the behavior it has
 2. I wanted to see if I could guide coding a tool in a language I do not know. I have not learned or used Rust before doing this project
 
-This project is being built with OpenCode and GLM 5 Turbo. 
-
-## Roadmap
-
-| Phase | Status | Title                      | Scope                                                      | Key Deliverables             |
-|-------|--------|----------------------------|------------------------------------------------------------|------------------------------|
-| 1     | ✅      | Minimal MVP                | `/completions` provider, no tools                          | Working binary, basic UX, env config |
-| 2     | ✅      | `find_command` Tool        | Add command discovery tool                                 | Tool trait, registry, tool call loop |
-| 3     | ✅      | `ask_user` Tool            | Add interactive clarification tool                         | Interactive stdin/stderr UX |
-| 4     | ✅      | Tool Levels                | Numbered tool level system, `--list-tools`                 | Progressive tool disclosure, config |
-| 5     | ✅      | Safety Check               | Modular prompt, LLM guidance, semantic checks              | Three-layer safety, system prompt split, shlex tokenization |
-| 6     | ✅      | OpenRouter & HuggingFace   | Two more OpenAI-compat providers                           | Named provider pattern, shared completions impl |
-| 7     | ✅      |  Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats               | Three new providers, AuthStyle::QueryParam |
-| 8     | ✅      | Responses & Remaining      | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
-| 9     | ✅      | Cross-Compilation          | Build targets for all platforms                            | Makefile dist, cross for Linux, Apple Intel/Silicon |
-| 10    | ✅      | CI/CD & Distribution       | GitHub Actions, releases, polish                           | Automated testing, release workflow, docs |
-| 11    | ⬜      | Interactive Setup          | `--setup` flag, first-run detection, config wizard         | Setup module, interactive prompts, config file creation |
-| 12    | ✅      | Debug Mode                 | Debug logging, `--debug` flag                              | Debug logging module, stderr trace output, configurable verbosity |
+This project has been built with OpenCode and GLM 5 Turbo. 
 
 ## Features
 
-- **Multiple providers** — OpenAI, Anthropic, Google Gemini, Mistral, Qwen, Kimi, OpenRouter, HuggingFace, Z.ai, Minimax, Ollama, and any OpenAI-compatible `/completions` or `/responses` endpoint.
-- **Interactive tools** — The model can ask clarifying questions (multiple-choice) and look up commands on your system (`which`/`command -v`).
-- **Zero runtime deps** — Static binary via Rust + rustls. No OpenSSL, no shared libraries.
+- **Multiple providers** — Works with OpenAI, Anthropic, Google Gemini, Mistral, Qwen, Kimi, OpenRouter, HuggingFace, Z.ai, Minimax, Ollama, and any OpenAI-compatible `/completions` or `/responses` endpoint.
+- **Interactive tools** — The model can ask clarifying questions (multiple-choice) and look up commands on your system (`which`/`command -v`). 
+- **Zero runtime dependencies** — Static binary via Rust + rustls. No OpenSSL, no shared libraries.
 - **Pipe-friendly** — All interactive prompts go to stderr; only the final command goes to stdout, so `$(cmdify "find all pdf files")` works.
+- **Setup wizard** – First time use triggers a configuration setup process.
 
 ## Installation
 
 **From GitHub Releases** (recommended — no Rust toolchain needed):
 
 1. Go to the [latest release](https://github.com/tajhlande/cmdify/releases/latest)
-2. Download the tar.gz for your platform
+2. Download the package for your platform
 3. Extract and move `cmdify` to a directory on your `$PATH`
 
 ```sh
@@ -63,9 +47,11 @@ Or directly with cargo:
 cargo install --path .
 ```
 
-## Quick Start
+## Quick Start 
 
-Set your provider and model, then run:
+You can configure `cmdify` with environment variables. 
+
+To set your provider and model and run:
 
 ```sh
 export CMDIFY_PROVIDER_NAME=openai
@@ -88,6 +74,12 @@ Configuration uses a layered approach: **environment variables > config file > d
 
 ### Config File
 
+**Option 1: Automatic config file creation**
+
+Run `cmdify`, without a config file or environment variables set. Or run `cmdify --setup` to force the agent.
+
+**Option 2: Manual config file creation**
+
 Create a TOML file at `$XDG_CONFIG_HOME/cmdify/config.toml` (or `$HOME/.config/cmdify/config.toml` if `XDG_CONFIG_HOME` is not set). Below is a minimal config file:
 
 ```toml
@@ -100,7 +92,7 @@ or command line options can override. There is a full example config file at [co
 
 ### Environment Variables
 
-**Required** (can be set in config file instead):
+**Required** (but can be set in the config file instead):
 
 | Variable               | Description                                                                             |
 |------------------------|-----------------------------------------------------------------------------------------|
@@ -191,3 +183,21 @@ make fmt       # Auto-format code
 ## License
 
 Apache 2.0
+
+
+## Roadmap
+
+| Phase | Status | Title                      | Scope                                                      | Key Deliverables             |
+|-------|--------|----------------------------|------------------------------------------------------------|------------------------------|
+| 1     | ✅      | Minimal MVP                | `/completions` provider, no tools                          | Working binary, basic UX, env config |
+| 2     | ✅      | `find_command` Tool        | Add command discovery tool                                 | Tool trait, registry, tool call loop |
+| 3     | ✅      | `ask_user` Tool            | Add interactive clarification tool                         | Interactive stdin/stderr UX |
+| 4     | ✅      | Tool Levels                | Numbered tool level system, `--list-tools`                 | Progressive tool disclosure, config |
+| 5     | ✅      | Safety Check               | Modular prompt, LLM guidance, semantic checks              | Three-layer safety, system prompt split, shlex tokenization |
+| 6     | ✅      | OpenRouter & HuggingFace   | Two more OpenAI-compat providers                           | Named provider pattern, shared completions impl |
+| 7     | ✅      |  Gemini, OpenAI, Anthropic | First-class providers, distinct wire formats               | Three new providers, AuthStyle::QueryParam |
+| 8     | ✅      | Responses & Remaining      | Responses API + Z.ai, Minimax, Qwen, Kimi, Mistral, Ollama | Full provider coverage |
+| 9     | ✅      | Cross-Compilation          | Build targets for all platforms                            | Makefile dist, cross for Linux, Apple Intel/Silicon |
+| 10    | ✅      | CI/CD & Distribution       | GitHub Actions, releases, polish                           | Automated testing, release workflow, docs |
+| 11    | ✅      | Interactive Setup          | `--setup` flag, first-run detection, config wizard         | Setup module, interactive prompts, config file creation |
+| 12    | ✅      | Debug Mode                 | Debug logging, `--debug` flag                              | Debug logging module, stderr trace output, configurable verbosity |

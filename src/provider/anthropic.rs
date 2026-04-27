@@ -133,13 +133,11 @@ impl AnthropicProvider {
         for block in content_arr {
             let block_type = block.get("type").and_then(|t| t.as_str()).unwrap_or("");
             match block_type {
-                "text" => {
-                    if content.is_none() {
-                        content = block
-                            .get("text")
-                            .and_then(|t| t.as_str())
-                            .map(|s| s.to_string());
-                    }
+                "text" if content.is_none() => {
+                    content = block
+                        .get("text")
+                        .and_then(|t| t.as_str())
+                        .map(|s| s.to_string());
                 }
                 "tool_use" => {
                     let id = block

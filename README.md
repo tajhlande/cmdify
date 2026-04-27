@@ -11,12 +11,12 @@ I built this tool for two reasons:
 1. I wanted a tool like this, with the behavior it has
 2. I wanted to see if I could guide coding a tool in a language I do not know. I have not learned or used Rust before doing this project
 
-This project has been built with OpenCode and GLM 5 Turbo. 
+This project has been built with OpenCode and GLM 5 Turbo.
 
 ## Features
 
 - **Multiple providers** — Works with OpenAI, Anthropic, Google Gemini, Mistral, Qwen, Kimi, OpenRouter, HuggingFace, Z.ai, Minimax, Ollama, and any OpenAI-compatible `/completions` or `/responses` endpoint.
-- **Interactive tools** — The model can ask clarifying questions (multiple-choice) and look up commands on your system (`which`/`command -v`). 
+- **Interactive tools** — The model can ask clarifying questions (multiple-choice) and look up commands on your system (`which`/`command -v`).
 - **Zero runtime dependencies** — Static binary via Rust + rustls. No OpenSSL, no shared libraries.
 - **Pipe-friendly** — All interactive prompts go to stderr; only the final command goes to stdout, so `$(cmdify "find all pdf files")` works.
 - **Setup wizard** – First time use triggers a configuration setup process.
@@ -47,9 +47,9 @@ Or directly with cargo:
 cargo install --path .
 ```
 
-## Quick Start 
+## Quick Start
 
-You can configure `cmdify` with environment variables. 
+You can configure `cmdify` with environment variables.
 
 To set your provider and model and run:
 
@@ -59,13 +59,13 @@ export CMDIFY_MODEL_NAME=gpt-5-nano
 export OPENAI_API_KEY=sk-...
 
 cmdify "find all pdf files larger than 10MB"
-# Output: find . -name "*.pdf" -size +10M
+# Output to stdout: find . -name "*.pdf" -size +10M
 ```
 
-Use the output in a subshell:
+Automatically execute the generated command, if you want to live dangerously:
 
 ```sh
-eval "$(cmdify "list all docker containers sorted by size")"
+cmdify --yolo "list all docker containers sorted by size"
 ```
 
 ## Configuration
@@ -87,7 +87,7 @@ provider_name = "openai"
 model_name = "gpt-5-nano"
 ```
 
-The config file is optional. If present, its values are used as defaults that environment variables 
+The config file is optional. If present, its values are used as defaults that environment variables
 or command line options can override. There is a full example config file at [config.example.toml](config.example.toml)
 
 ### Environment Variables

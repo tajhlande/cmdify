@@ -15,7 +15,7 @@ jobs:
           - aarch64-unknown-linux-musl
           - armv7-unknown-linux-musleabihf
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo install cross --git https://github.com/cross-rs/cross
       - run: cross build --release --target ${{ matrix.target }}
@@ -27,30 +27,36 @@ jobs:
           name: cmdify-${{ matrix.target }}
           path: cmdify-${{ matrix.target }}.tar.gz
 
-  build-macos:
+  build-macos-arm:
     runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - aarch64-apple-darwin
-          - x86_64-apple-darwin
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-      - run: cargo build --release --target ${{ matrix.target }}
+      - run: cargo build --release --target aarch64-apple-darwin
       - run: |
-          cd target/${{ matrix.target }}/release
-          tar czf ../../../cmdify-${{ matrix.target }}.tar.gz cmdify
+          cd target/aarch64-apple-darwin/release
+          tar czf ../../../cmdify-aarch64-apple-darwin.tar.gz cmdify
       - uses: actions/upload-artifact@v4
         with:
-          name: cmdify-${{ matrix.target }}
-          path: cmdify-${{ matrix.target }}.tar.gz
+          name: cmdify-aarch64-apple-darwin
+          path: cmdify-aarch64-apple-darwin.tar.gz
+
+  build-macos-intel:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release --target x86_64-apple-darwin
+      - run: |
+          cd target/x86_64-apple-darwin/release
+          tar czf ../../../cmdify-x86_64-apple-darwin.tar.gz cmdify
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cmdify-x86_64-apple-darwin
+          path: cmdify-x86_64-apple-darwin.tar.gz
 
   release:
-    needs: [build-linux, build-macos]
+    needs: [build-linux, build-macos-arm, build-macos-intel]
     runs-on: ubuntu-latest
     permissions:
       contents: write

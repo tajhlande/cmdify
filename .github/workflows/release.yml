@@ -17,7 +17,9 @@ jobs:
           - armv7-unknown-linux-musleabihf
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95
+        with:
+          components: clippy, rustfmt
       - run: cargo install cross --git https://github.com/cross-rs/cross
       - run: cross build --release --target ${{ matrix.target }}
       - run: |
@@ -32,8 +34,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.95
         with:
+          components: clippy, rustfmt
           targets: x86_64-apple-darwin
       - run: cargo build --release --target aarch64-apple-darwin
       - run: |

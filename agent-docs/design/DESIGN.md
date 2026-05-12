@@ -77,6 +77,7 @@ src/
 │   └── find_command.rs  # command discovery (command -v / which)
 ├── safety.rs             # unsafe command pattern detection
 ├── setup.rs              # interactive config wizard
+├── history.rs            # prompt history (XDG cache, rustyline integration)
 ├── prompt.rs            # prompt assembly, exposes SYSTEM_PROMPT
 └── system_prompt.txt    # system prompt text (embedded at compile time)
 ```
@@ -108,6 +109,7 @@ Uses `clap` with derive macros. Parses:
 | `--spinner N` | `-s N` | Spinner style: 1 (default), 2 (braille), 3 (dots) |
 | `--unsafe` | `-u` | Allow potentially unsafe commands (bypasses safety check) |
 | `--setup` | — | Run interactive setup wizard (requires interactive terminal) |
+| `--interactive` | `-i` | Read command description from interactive prompt instead of positional args |
 
 **Flag precedence:** `-n` (`--no-tools`) takes absolute precedence over `-q` and `-b`. If `-n` is set, no tools are registered regardless of whether `-q` or `-b` are also present. The `clap` configuration should mark `-n` as conflicting with `-q` and `-b` to prevent confusing combinations.
 
@@ -188,6 +190,30 @@ Interactive config wizard that creates or updates `~/.config/cmdify/config.toml`
 - Setup prompts for provider, model name, max tokens, and optional system prompt file. Existing config values are used as defaults.
 - API keys are NEVER written to the config file. Setup prints the appropriate `export` command for the user's shell profile.
 - All setup prompts go to stderr; stdout remains clean.
+
+### 4.9 Interactive Input
+
+When `-i` / `--interactive` is passed, cmdify reads the command description from an interactive prompt instead of positional arguments:
+
+1. Prints "Enter command description" to stderr, followed by a `> ` prompt.
+2. Uses `rustyline` for full line editing (arrow keys, home/end, undo, Ctrl-R history search).
+3. If the user presses Ctrl-C or Ctrl-D, or enters an empty line, cmdify exits without running a command.
+4. If cmdify is not running in an interactive terminal (stdin is not a TTY), it exits with an error.
+5. `-i` / `--interactive` conflicts with positional arguments — clap rejects the combination at parse time.
+
+This mode is useful when the command description contains characters that would otherwise be interpreted by the shell (quotes, backticks, pipes, etc.), since the input is read as a raw string without shell parsing.
+
+### 4.10 Command History (`history.rs`)
+
+All user prompts are saved to a persistent history file, regardless of input mode (CLI arguments or interactive).
+
+**Location:** `$XDG_CACHE_HOME/cmdify/history.txt`, falling back to `$HOME/.cache/cmdify/history.txt`.
+
+**Behavior:**
+- **CLI mode:** After assembling the user prompt from positional arguments, the prompt is appended to the history file.
+- **Interactive mode:** `rustyline` manages the history file directly, providing up/down arrow navigation and Ctrl-R reverse search across previous inputs.
+- Both modes write to the same file, so interactive history includes prompts entered via CLI arguments.
+- The history file is non-essential (cache); it can be deleted without affecting cmdify's operation.
 
 ---
 

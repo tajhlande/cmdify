@@ -20,6 +20,7 @@ This project has been built with OpenCode and GLM 5 Turbo.
 - **Zero runtime dependencies** — Static binary via Rust + rustls. No OpenSSL, no shared libraries.
 - **Pipe-friendly** — All interactive prompts go to stderr; only the final command goes to stdout, so `$(cmdify "find all pdf files")` works.
 - **Setup wizard** – First time use triggers a configuration setup process.
+- **Command history** — All prompts are saved to `$XDG_CACHE_HOME/cmdify/history.txt`. Interactive mode (`-i`) supports up/down arrow and Ctrl-R history search via `rustyline`.
 
 ## Installation
 
@@ -66,6 +67,14 @@ Automatically execute the generated command, if you want to live dangerously:
 
 ```sh
 cmdify --yolo "list all docker containers sorted by size"
+```
+
+Use interactive mode to avoid shell parsing issues with special characters. Provides full line editing (arrow keys, undo, Ctrl-R history search) and persists input history across invocations:
+
+```sh
+cmdify -i
+Enter command description
+> find files with names containing "report" and size over 100MB
 ```
 
 ## Configuration
@@ -145,6 +154,7 @@ like API keys.
 | `-y`, `--yolo`          | Execute the generated command after printing it            |
 | `-d`, `--debug`         | Enable debug logging to stderr (`-d` basic, `-dd` verbose) |
 | `-s N`, `--spinner N`   | Spinner style: 1 (default bar), 2 (braille), 3 (dots)      |
+| `-i`, `--interactive`   | Read command description from interactive prompt (avoids shell parsing issues) |
 
 ## Development
 

@@ -15,6 +15,7 @@ async-trait = "0.1"
 chrono = "0.4"
 toml = "1"
 shlex = "1"
+rustyline = { version = "18", features = ["with-file-history"] }
 
 [profile.release]
 strip = true

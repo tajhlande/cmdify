@@ -3,6 +3,7 @@ mod cli;
 mod config;
 mod debug;
 mod error;
+mod history;
 mod logger;
 mod orchestrator;
 mod prompt;
@@ -14,7 +15,39 @@ mod tools;
 
 use clap::Parser;
 use cli::Cli;
+use rustyline::config::Configurer;
 use std::io::IsTerminal;
+
+fn read_interactive_input() -> Option<String> {
+    let mut rl = match rustyline::DefaultEditor::new() {
+        Ok(editor) => editor,
+        Err(_) => return None,
+    };
+    rl.set_max_history_size(history::max_history_lines())
+        .unwrap();
+
+    let history_path = history::history_file_path();
+    let _ = rl.load_history(&history_path);
+
+    eprintln!("Enter command description");
+    let line = match rl.readline("> ") {
+        Ok(input) => input,
+        Err(rustyline::error::ReadlineError::Interrupted)
+        | Err(rustyline::error::ReadlineError::Eof) => return None,
+        Err(_) => return None,
+    };
+
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let _ = rl.add_history_entry(trimmed);
+    history::ensure_parent_dir(&history_path);
+    let _ = rl.save_history(&history_path);
+
+    Some(trimmed.to_string())
+}
 
 fn print_tool_levels() {
     println!("cmdify tool levels (default: 1)");
@@ -89,12 +122,27 @@ async fn main() {
         );
     }
 
-    if cli.prompt.is_empty() {
+    // --interactive flag: read prompt from terminal input
+    let user_prompt = if cli.interactive {
+        if !std::io::stdin().is_terminal() {
+            eprintln!("error: --interactive requires an interactive terminal");
+            std::process::exit(1);
+        }
+        match read_interactive_input() {
+            Some(input) => input,
+            None => {
+                Cli::parse_from(["cmdify", "--help"]);
+                return;
+            }
+        }
+    } else if cli.prompt.is_empty() {
         Cli::parse_from(["cmdify", "--help"]);
         return;
-    }
-
-    let user_prompt = cli.user_prompt();
+    } else {
+        let prompt = cli.user_prompt();
+        history::append_to_history(&prompt);
+        prompt
+    };
 
     let (config, env_sources) = match config::Config::from_env(cli.config.as_deref()) {
         Ok((c, s)) => (c, s),

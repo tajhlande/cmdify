@@ -181,6 +181,7 @@ mod tests {
             debug,
             spinner: None,
             setup: false,
+            interactive: false,
             prompt: vec!["test".into()],
         };
         apply_cli_overrides(&cli, base_config())
@@ -252,6 +253,7 @@ mod tests {
             debug: 0,
             spinner: None,
             setup: false,
+            interactive: false,
             prompt: vec!["test".into()],
         };
         let (config, _) = apply_cli_overrides(&cli, base_config());
@@ -274,6 +276,7 @@ mod tests {
             debug: 0,
             spinner: None,
             setup: false,
+            interactive: false,
             prompt: vec!["test".into()],
         };
         let (config, _) = apply_cli_overrides(&cli, config);
@@ -305,6 +308,7 @@ mod tests {
             debug: 2,
             spinner: None,
             setup: false,
+            interactive: false,
             prompt: vec!["test".into()],
         };
         let (config, _) = apply_cli_overrides(&cli, config);
@@ -340,6 +344,7 @@ mod tests {
             debug: 0,
             spinner: None,
             setup: false,
+            interactive: false,
             prompt: vec!["test".into()],
         };
         let (config, _) = apply_cli_overrides(&cli, config);

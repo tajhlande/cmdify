@@ -38,3 +38,27 @@ fn help_contains_usage() {
     assert!(help.contains("quiet"));
     assert!(help.contains("blind"));
 }
+
+#[test]
+fn parse_interactive_short() {
+    let cli = Cli::try_parse_from(["cmdify", "-i"]).unwrap();
+    assert!(cli.interactive);
+}
+
+#[test]
+fn parse_interactive_long() {
+    let cli = Cli::try_parse_from(["cmdify", "--interactive"]).unwrap();
+    assert!(cli.interactive);
+}
+
+#[test]
+fn interactive_default_false() {
+    let cli = Cli::try_parse_from(["cmdify", "test"]).unwrap();
+    assert!(!cli.interactive);
+}
+
+#[test]
+fn help_contains_interactive() {
+    let help = Cli::command().render_help().to_string();
+    assert!(help.contains("interactive"));
+}

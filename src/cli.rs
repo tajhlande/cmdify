@@ -73,6 +73,14 @@ pub struct Cli {
     pub setup: bool,
 
     #[arg(
+        short = 'i',
+        long = "interactive",
+        help = "Prompt for command description interactively (avoids shell parsing issues)",
+        conflicts_with_all = ["prompt", "setup"]
+    )]
+    pub interactive: bool,
+
+    #[arg(
         trailing_var_arg = true,
         help = "Natural language description of the command to generate"
     )]
@@ -290,5 +298,46 @@ mod tests {
         let mut cmd = Cli::command();
         let help = cmd.render_help().to_string();
         assert!(help.contains("setup"));
+    }
+
+    #[test]
+    fn parse_interactive_short() {
+        let cli = Cli::try_parse_from(["cmdify", "-i"]).unwrap();
+        assert!(cli.interactive);
+    }
+
+    #[test]
+    fn parse_interactive_long() {
+        let cli = Cli::try_parse_from(["cmdify", "--interactive"]).unwrap();
+        assert!(cli.interactive);
+    }
+
+    #[test]
+    fn interactive_default_false() {
+        let cli = Cli::try_parse_from(["cmdify", "find files"]).unwrap();
+        assert!(!cli.interactive);
+    }
+
+    #[test]
+    fn help_includes_interactive() {
+        let mut cmd = Cli::command();
+        let help = cmd.render_help().to_string();
+        assert!(help.contains("interactive"));
+    }
+
+    #[test]
+    fn interactive_conflicts_with_prompt() {
+        let result = Cli::try_parse_from(["cmdify", "-i", "find", "files"]);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("--interactive"));
+    }
+
+    #[test]
+    fn interactive_conflicts_with_setup() {
+        let result = Cli::try_parse_from(["cmdify", "-i", "--setup"]);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("--interactive"));
     }
 }

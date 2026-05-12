@@ -52,6 +52,7 @@
   - `-y` or `--yolo` to execute the generated command after printing it
   - `-s N` or `--spinner N` to select spinner style (1, 2, or 3)
   - `-u` or `--unsafe` to allow potentially unsafe commands (bypasses safety check)
+  - `-i` or `--interactive` to accept the command description from an interactive prompt instead of positional arguments
 
 ## Coding Guidelines
 

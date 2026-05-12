@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 jobs:
   build-linux:
@@ -57,6 +58,7 @@ jobs:
 
   release:
     needs: [build-linux, build-macos-arm, build-macos-intel]
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write

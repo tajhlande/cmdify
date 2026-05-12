@@ -37,7 +37,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.95
         with:
           components: clippy, rustfmt
-          targets: x86_64-apple-darwin
+      - run: rustup target add x86_64-apple-darwin
       - run: cargo build --release --target aarch64-apple-darwin
       - run: |
           cd target/aarch64-apple-darwin/release
